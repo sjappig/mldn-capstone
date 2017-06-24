@@ -1,7 +1,7 @@
 # Machine Learning Engineer Nanodegree
 ## Capstone Proposal
 Jari-Pekka Ryynänen
-June 23, 2017
+June 24, 2017
 
 ## Proposal
 
@@ -17,50 +17,61 @@ applications, e.g:
 
  * triggering some actions based on the audio event (like saving only speech)
 
-There are several papers tackling this problem (see [1],[2],[3]). As the amount
+There are several papers tackling this problem (see [1,2,3]). As the amount
 of data available has grown, the deep learning methods have become more
 suitable also for this problem.
 
 ### Problem Statement
 
-Problem to solve: Create a system that is capable of giving label to a short
-audio segment (possibly from a video). More precisily, given audio sample,
-predict a label that describes that sample, where label is from predefined set.
-The approach will be supervised, i.e. system is trained to do this prediction
-by showing sample-label pairs.
+Problem to solve: Create a system that is capable of giving single label to a
+short audio segment. More precisily, given audio sample, predict a label that
+describes that sample, where label is from predefined set. The approach will be
+supervised, i.e. system is trained to do this prediction by showing
+sample-label pairs. Precise predictions with coarse labels are preferred over
+imprecise with detailed labels.
 
 ### Datasets and Inputs
 
-**AudioSet**: Large-scale collection (over 2M samples) of human-labeled 10-second
-sound clips drawn from YouTube videos [4]. This dataset is perhaps the largest
-freely available one, and has very good documentation and support. There is
-also starter code which is helpful when starting to work with the dataset [5].
+**AudioSet**: Large-scale collection (over 2M samples) of human-labeled
+10-second sound clips drawn from YouTube videos [4]. This dataset is perhaps
+the largest freely available one, and has very good documentation and support.
+There is also starter code which is helpful when starting to work with the
+dataset [5].
 
-AudioSet includes precalculated features and balanced subsets for training and
-evaluation.
+AudioSet includes balanced subsets for training and evaluation. AudioSet
+samples might have multiple labels assigned to each sample; our target is
+however to predict single label.
+
+There are also precalculated audio features (128-dimensional @ 1 Hz).
+Unfortunately the feature extraction process used for those is not provided
+anywhere at the detail that would allow one to reproduce the extraction.
 
 Dataset is described in more detail in [4] and [6].
 
 ### Solution Statement
 
-To ease the computational burden, precalculated features provided with AudioSet
-are used (128-dimensional audio features extracted at 1 Hz). Also instead of
-using the whole dataset, which is huge (over 2M samples), balanced training and
+Intead of using the whole dataset, which is huge, balanced training and
 balanced evaluation sets are used, both containing more than 20k samples.
-Target labels will be the top-most labels in AudioSet ontology ("Human Sounds",
-"Source-ambiguous sounds", "Animal" etc).
+Target labels will be the top-level labels in AudioSet ontology:
+"Human sounds", "Source-ambiguous sounds", "Animal", "Sounds of things",
+"Music", "Natural sounds", "Channel, environment and background".
+These labels are used instead of the exact ones to simplify the problem.
 
-Using those as inputs, recurrent neural network is trained to do the
-classification. Recurrent neural networks are suitable for working with audio,
-as they contain memory about past samples. Evaluation set is kept aside until
-the classifier is in its final form (before that, model generalization is
-approximated with splits done within the training set).
+Rather than providing raw audio for classifier, frequency domain content is
+extracted for short frames using Mel-frequency cepstrum coeffiecients (MFCC)
+[7,8]. Using those as inputs, recurrent neural network is trained to do the
+classification. Recurrent neural networks are suitable for working with
+continuous audio, as they are able to capture also temporal features.
+Evaluation set is kept aside until the classifier is in its final form (before
+that, model generalization is approximated with splits done within the training
+set).
 
 ### Benchmark Model
 
 In [6] benchmark model is reported with "balanced mean Average Precision across
 the 485 categories of 0.314". However, this result is not directly comparable
-with our target, as we will use more coarse labels.
+with our target, as we will use more coarse labels, and we will not do
+multi-label classificiation.
 
 In [2], there are results of audio scene classification expressed with
 F1-score. The audio scene classification has subtle differences to our task at
@@ -80,24 +91,30 @@ values from [2] is **F1-score**: Harmonic mean of precision and recall.
 Mathematical equation for F1 is *2*precision*recall/(precision+recall)*.
 
 ### Project Design
-_(approx. 1 page)_
 
-In this final section, summarize a theoretical workflow for approaching a solution given the problem. Provide thorough discussion for what strategies you may consider employing, what analysis of the data might be required before being used, or which algorithms will be considered for your implementation. The workflow and discussion that you provide should align with the qualities of the previous sections. Additionally, you are encouraged to include small visualizations, pseudocode, or diagrams to aid in describing the project design, but it is not required. The discussion should clearly outline your intended workflow of the capstone project.
+The framework to work with will be Tensorflow with Python.
 
------------
+The first steps will be about the preparation of the data. Using the ontology
+provided in [4], the more coarse labels will be assigned to data, and samples
+that will still after this have multiple labels will be splitted (e.g. if one
+sample has three distinct labels, it will be turn in to three samples which
+each has one of the labels).
 
-**Before submitting your proposal, ask yourself. . .**
+After the relevant audio segments are downloaded with youtube-dl [9], feature
+extraction can be done with [8]. Extracted features can then be fed to
+classifier.
 
-- Does the proposal you have written follow a well-organized structure similar to that of the project template?
-- Is each section (particularly **Solution Statement** and **Project Design**) written in a clear, concise and specific fashion? Are there any ambiguous terms or phrases that need clarification?
-- Would the intended audience of your project be able to understand your proposal?
-- Have you properly proofread your proposal to assure there are minimal grammatical and spelling mistakes?
-- Are all the resources used for this project correctly cited and referenced?
+There are plenty of tunable properties in both feature extractor and in
+classifier, and it is very likely that adjusting them will take the most time.
 
+### References
 
-[1] Kons, Z., Toledo-Ronen, O.: Audio Event Classification Using Deep Neural Networks, 2013 https://pdfs.semanticscholar.org/1881/acfe27135da6c717fb770dfa3793b8b225d5.pdf
-[2] Phan, H. et al.: Audio Scene Classification with Deep Recurrent Neural Networks, 2017 https://arxiv.org/pdf/1703.04770.pdf
-[3] Bae, H. et al: Acoustic Scene Classification Using Parallel Combination of LSTM and CNN, 2016 https://www.cs.tut.fi/sgn/arg/dcase2016/documents/challenge_technical_reports/Task1/Bae_2016_task1.pdf
-[4] AudioSet: A large-scale dataset of manually annotated audio events https://research.google.com/audioset/dataset/index.html
-[5] YouTube-8M Tensorflow Starter Code: https://github.com/google/youtube-8m
-[6] Gemmeke, J. et al: Audio Set: An ontology and human-labeled dataset for audio events, 2017 https://research.google.com/pubs/pub45857.html
+1. Kons, Z., Toledo-Ronen, O.: Audio Event Classification Using Deep Neural Networks, 2013 https://pdfs.semanticscholar.org/1881/acfe27135da6c717fb770dfa3793b8b225d5.pdf
+1. Phan, H. et al.: Audio Scene Classification with Deep Recurrent Neural Networks, 2017 https://arxiv.org/pdf/1703.04770.pdf
+1. Bae, H. et al: Acoustic Scene Classification Using Parallel Combination of LSTM and CNN, 2016 https://www.cs.tut.fi/sgn/arg/dcase2016/documents/challenge\_technical\_reports/Task1/Bae\_2016\_task1.pdf
+1. AudioSet: A large-scale dataset of manually annotated audio events https://research.google.com/audioset/dataset/index.html
+1. YouTube-8M Tensorflow Starter Code: https://github.com/google/youtube-8m
+1. Gemmeke, J. et al: Audio Set: An ontology and human-labeled dataset for audio events, 2017 https://research.google.com/pubs/pub45857.html
+1. Mel-frequency cepstrum, https://en.wikipedia.org/wiki/Mel-frequency\_cepstrum
+1. python\_speech\_features https://github.com/jameslyons/python\_speech\_features
+1. youtube-dl https://github.com/rg3/youtube-dl
