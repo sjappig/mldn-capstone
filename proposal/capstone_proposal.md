@@ -17,7 +17,7 @@ applications, e.g:
 
  * triggering some actions based on the audio event (like saving only speech)
 
-There are several papers tackling this problem (see [1,2,3]). As the amount
+There are several papers tackling this problem [1,2,3]. As the amount
 of data available has grown, the deep learning methods have become more
 suitable also for this problem.
 
@@ -73,11 +73,11 @@ the 485 categories of 0.314". However, this result is not directly comparable
 with our target, as we will use more coarse labels, and we will not do
 multi-label classificiation.
 
-In [2], there are results of audio scene classification expressed with
-F1-score. The audio scene classification has subtle differences to our task at
-hand, but eventually it is about classifying audio segments, so it makes sense
-to compare our results with it. The dataset used in [2] is LITIS-Rouen, which
-has 19 categories.
+In [2] are results of audio scene classification with F1-score: "approach
+obtains an F1-score of 97.7%". The audio scene classification has subtle
+differences to our task at hand, but eventually it is about classifying audio
+segments, so it makes sense to compare our results with it. The dataset used in
+[2] is LITIS-Rouen, which has 19 categories.
 
 In this work, simple logistic regression model will be trained without
 parameter tuning to give baseline. Also zero-hypothesis (model that
@@ -88,15 +88,15 @@ our model is performing.
 
 Balanced error measure which is easy to understand, and is comparable with
 values from [2] is **F1-score**: Harmonic mean of precision and recall.
-Mathematical equation for F1 is *2*precision*recall/(precision+recall)*.
+Mathematical equation for F1 is *2\*precision\*recall/(precision+recall)*.
 
 ### Project Design
 
-The framework to work with will be Tensorflow with Python.
+The main tools will be Tensorflow and Python.
 
 The first steps will be about the preparation of the data. Using the ontology
-provided in [4], the more coarse labels will be assigned to data, and samples
-that will still after this have multiple labels will be splitted (e.g. if one
+provided in [4], the top-level labels will be assigned to data, and samples
+that will still after this have multiple labels will be duplicated (e.g. if one
 sample has three distinct labels, it will be turn in to three samples which
 each has one of the labels).
 
@@ -106,6 +106,14 @@ classifier.
 
 There are plenty of tunable properties in both feature extractor and in
 classifier, and it is very likely that adjusting them will take the most time.
+
+Zero-hypothesis model can be obtained already at the very beginning. Baseline
+logistic regression has to be re-trained each time feature extraction is
+modified.
+
+At the point where the model does not seem to improve anymore by just parameter
+tuning, it will be considered to be as good as it gets within this project
+and the evaluation set is used to get the final score.
 
 ### References
 
