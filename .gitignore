@@ -1,4 +1,5 @@
 *.pdf
 *.swp
 *.wav
+*.pyc
 sandbox
