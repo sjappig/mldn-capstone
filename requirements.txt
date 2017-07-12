@@ -1,0 +1,9 @@
+numpy
+sklearn
+pandas
+tensorflow
+jupyter
+python_speech_features
+scipy
+tables
+
