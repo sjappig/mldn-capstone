@@ -1,7 +1,3 @@
-'''
-AudioSet ontology wrapper
-'''
-
 import itertools
 import json
 

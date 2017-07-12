@@ -1,58 +1,83 @@
 import argparse
+import sys
 
+import numpy as np
 import pandas as pd
+import sklearn.linear_model
 import sklearn.metrics
 import sklearn.model_selection
+import sklearn.multiclass
 
+import audiolabel.dataset
 import audiolabel.preprocess
+import audiolabel.util
 
 
-_ZERO_HYPOTHESIS_PREDICTION = [audiolabel.preprocess.k_hot_encode(['/m/04rlf'])]
+_ZERO_HYPOTHESIS_PREDICTION = [
+    audiolabel.preprocess.k_hot_encode(['/m/04rlf'])
+]
 
 
 def zero_hypothesis_scores(*y_args):
-    def calculate():
-        for y in y_args:
-            yield sklearn.metrics.f1_score(
-                y.values,
-                _ZERO_HYPOTHESIS_PREDICTION*len(y),
-                average='macro',
-            )
+    return [
+        audiolabel.util.f1_score(y, np.array(_ZERO_HYPOTHESIS_PREDICTION*len(y)))
+        for y in y_args
+    ]
 
-    return tuple(calculate())
+
+def baseline_scores(x_train, y_train, x_validation, y_validation):
+    def to_mean_features(samples):
+        return np.array([
+            sample.mean(axis=0)
+            for sample in samples
+        ])
+
+    estimator = sklearn.linear_model.LogisticRegression()
+
+    multilabel_estimator = sklearn.multiclass.OneVsRestClassifier(
+        estimator,
+        n_jobs=-1,
+    )
+
+    x_train = to_mean_features(x_train)
+    x_validation = to_mean_features(x_validation)
+
+    multilabel_estimator.fit(x_train, y_train)
+
+    return [
+        audiolabel.util.f1_score(y_train, multilabel_estimator.predict(x_train)),
+        audiolabel.util.f1_score(y_validation, multilabel_estimator.predict(x_validation)),
+    ]
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Calculate MFCCs and stats for audioset samples')
+    parser = argparse.ArgumentParser(description='Calculate baseline F1 scores for audioset samples')
     parser.add_argument(
         'hdf_store',
         help='Filepath to HDF store. If store already exists, it will be overwritten.',
     )
     args = parser.parse_args()
 
-    data = pd.read_hdf(args.hdf_store, 'data')
-    count = pd.read_hdf(args.hdf_store, 'count')
-    dist = pd.read_hdf(args.hdf_store, 'label_distribution')
+    train = {
+        key: pd.read_hdf(args.hdf_store, key)
+        for key in ('count', 'label_distribution')
+    }
 
-    print '{} samples, labels distribution: {}'.format(count, dist)
+    print 'Sample count: {}'.format(train['count'])
+    print 'Labels distribution: {}'.format(train['label_distribution'])
 
-    print 'Splitting training data to train and validation sets...'
+    dataset = audiolabel.dataset.read(args.hdf_store)
 
+    x_train, x_validation, y_train, y_validation = dataset.train_test_split()
 
-    train_data, validation_data = sklearn.model_selection.train_test_split(
-        data,
-        test_size=0.2,
-    )
-
-    print train_data['labels_ohe'][0:9]
-    print _ZERO_HYPOTHESIS_PREDICTION*10
     print 'Calculating F1-scores for zero-hypothesis...'
 
-    train_score, validation_score = zero_hypothesis_scores(train_data['labels_ohe'], validation_data['labels_ohe'])
+    train_score, validation_score = zero_hypothesis_scores(y_train, y_validation)
 
     print 'Zero-hypothesis: {} (training set), {} (validation set)'.format(train_score, validation_score)
 
+    print 'Calculating F1-scores for baseline estimator...'
 
+    train_score, validation_score = baseline_scores(x_train, y_train, x_validation, y_validation)
 
-
-
+    print 'Baseline estimator: {} (training set), {} (validation set)'.format(train_score, validation_score)

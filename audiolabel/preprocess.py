@@ -34,6 +34,13 @@ def k_hot_encode(labels):
     ]
 
 
+def min_max_normalize(features, min_features, max_features):
+    return np.array([
+        (feature - min_features) / (max_features - min_features)
+        for feature in features
+    ])
+
+
 def calculate_and_store_features(filepath, max_samples=None):
     hdf_dir = os.path.dirname(filepath)
 
@@ -55,7 +62,7 @@ def calculate_and_store_features(filepath, max_samples=None):
 
     warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
 
-    store.put('data', dataframe)
+    store.put('samples', dataframe)
 
     stats_collector.to_hdf(store)
 
@@ -91,7 +98,7 @@ if __name__ == '__main__':
         help='Filepath to HDF store. If store already exists, it will be overwritten.',
     )
     parser.add_argument(
-        '--max_samples',
+        '--max-samples',
         metavar='N',
         type=int,
         help='Maximum number of samples to process',
