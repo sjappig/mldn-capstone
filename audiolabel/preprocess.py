@@ -11,49 +11,45 @@ import audiolabel.ontology
 import audiolabel.stats
 
 
-PP_DATA_DIR = 'pp_data'
-TRAIN_DATA_HDF = os.path.join(PP_DATA_DIR, 'train_data.h5')
-
 ONTOLOGY = audiolabel.ontology.read(
     'dataset/ontology/ontology.json',
 )
 
 
-def _create_label_one_hot_encode():
-    main_concept_ids = sorted([
-        concept['id']
-        for concept in ONTOLOGY.main_concepts
-    ])
-
-    identity = np.identity(len(main_concept_ids), dtype=int)
-
-    return {
-        main_concept_ids[idx]: identity[idx]
-        for idx in range(0, len(main_concept_ids))
-    }
+_MAIN_CONCEPT_LABELS = sorted([
+    concept['id']
+    for concept in ONTOLOGY.main_concepts
+])
 
 
-_LABEL_ONE_HOT_ENCODE = _create_label_one_hot_encode()
+def k_hot_encode(labels):
+    label_indices = [
+        _MAIN_CONCEPT_LABELS.index(label)
+        for label in labels
+    ]
+
+    return [
+        int(idx in label_indices)
+        for idx in range(0, len(_MAIN_CONCEPT_LABELS))
+    ]
 
 
-def one_hot_encode(label):
-    return _LABEL_ONE_HOT_ENCODE[label]
+def calculate_and_store_features(filepath, max_samples=None):
+    hdf_dir = os.path.dirname(filepath)
 
-
-def calculate_and_store_features(max_samples=None):
-    if not os.path.isdir(PP_DATA_DIR):
-        os.makedirs(PP_DATA_DIR)
+    if not os.path.isdir(hdf_dir):
+        os.makedirs(hdf_dir)
 
     print 'Creating HDF store, statistics collector and training data generator...'
 
-    store = pd.HDFStore(TRAIN_DATA_HDF)
+    store = pd.HDFStore(filepath)
 
     stats_collector = audiolabel.stats.StatisticsCollector(ONTOLOGY)
 
     generator = _generate_training_data(stats_collector, max_samples)
 
     print 'Creating and populating dataframe...'
-    dataframe = pd.DataFrame(generator, columns=('features', 'label', 'label_ohe'))
+    dataframe = pd.DataFrame(generator, columns=('features', 'labels', 'labels_ohe'))
 
     print 'Storing dataframe to HDF store...'
 
@@ -75,23 +71,25 @@ def _generate_training_data(stats_collector, max_samples=None):
     for sample in audio_generator:
         pp_sample = audiolabel.sample.PreprocessedSample(sample, ONTOLOGY)
 
-        for splitted_sample in pp_sample.split():
+        if max_samples is not None and stats_collector.count >= max_samples:
+            return
 
-            if max_samples is not None and stats_collector.count >= max_samples:
-                return
+        if stats_collector.count  % 1000 == 0:
+            print 'Sample #{}'.format(stats_collector.count)
 
-            if stats_collector.count  % 1000 == 0:
-                print 'Sample #{}'.format(stats_collector.count)
+        stats_collector.update(pp_sample)
 
-            stats_collector.update(splitted_sample)
+        labels = pp_sample.labels
 
-            label = splitted_sample.labels[0]
-
-            yield splitted_sample.data, label, one_hot_encode(label)
+        yield pp_sample.data, labels, k_hot_encode(labels)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Calculate MFCC for audioset samples')
+    parser = argparse.ArgumentParser(description='Calculate MFCCs and stats for audioset samples')
+    parser.add_argument(
+        'hdf_store',
+        help='Filepath to HDF store. If store already exists, it will be overwritten.',
+    )
     parser.add_argument(
         '--max_samples',
         metavar='N',
@@ -99,5 +97,5 @@ if __name__ == '__main__':
         help='Maximum number of samples to process',
     )
     args = parser.parse_args()
-    calculate_and_store_features(args.max_samples)
+    calculate_and_store_features(args.hdf_store, args.max_samples)
 
