@@ -26,9 +26,9 @@ def zero_hypothesis_scores(*y_args):
 
 
 def baseline_scores(x_train, y_train, x_validation, y_validation):
-    def to_mean_features(samples):
+    def to_baseline_features(samples):
         return np.array([
-            sample.mean(axis=0)
+            sample.flatten('F')
             for sample in samples
         ])
 
@@ -39,8 +39,8 @@ def baseline_scores(x_train, y_train, x_validation, y_validation):
         n_jobs=-1,
     )
 
-    x_train = to_mean_features(x_train)
-    x_validation = to_mean_features(x_validation)
+    x_train = to_baseline_features(x_train)
+    x_validation = to_baseline_features(x_validation)
 
     multilabel_estimator.fit(x_train, y_train)
 
