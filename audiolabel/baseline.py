@@ -54,16 +54,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Calculate baseline F1 scores for audioset samples')
     parser.add_argument(
         'hdf_store',
-        help='Filepath to HDF store. If store already exists, it will be overwritten.',
+        help='Filepath to HDF store with preprocessed samples.',
     )
     args = parser.parse_args()
 
     train = {
         key: pd.read_hdf(args.hdf_store, key)
-        for key in ('count', 'label_distribution')
+        for key in ('label_distribution',)
     }
 
-    print 'Sample count: {}'.format(train['count'])
     print 'Labels distribution: {}'.format(train['label_distribution'])
 
     dataset = audiolabel.dataset.read(args.hdf_store)

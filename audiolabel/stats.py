@@ -7,25 +7,25 @@ class StatisticsCollector(object):
     def __init__(self, ontology):
         self._sample_count = 0
         self._label_distribution = {
-            concept['id']: 0
-            for concept in ontology.main_concepts
+            label: 0
+            for label in ontology.topmost_labels
         }
         self._maximum_features = None
         self._minimum_features = None
 
-    def update(self, sample):
-        assert all(label in self._label_distribution for label in sample.labels)
+    def update(self, features, labels):
+        assert all(label in self._label_distribution for label in labels)
 
         self._sample_count += 1
 
-        for label in sample.labels:
+        for label in labels:
             self._label_distribution[label] += 1
 
-        sample_max = sample.data.max(axis=0)
-        sample_min = sample.data.min(axis=0)
+        sample_max = features.max(axis=0)
+        sample_min = features.min(axis=0)
 
         if self._maximum_features is None:
-            self._maximum_features = sample_max 
+            self._maximum_features = sample_max
             self._minimum_features = sample_min
             return
 
@@ -58,5 +58,4 @@ class StatisticsCollector(object):
     def to_hdf(self, store):
         store.put('max', pd.DataFrame(self.maximum))
         store.put('min', pd.DataFrame(self.minimum))
-        store.put('count', pd.Series(self.count))
         store.put('label_distribution', pd.Series(self.label_distribution))

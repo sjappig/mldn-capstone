@@ -13,37 +13,31 @@ class Ontology(object):
             concept['id']: concept
             for concept in data
         }
-
-    @property
-    def main_concepts(self):
-        return [
-            concept
-            for identifier, concept in self._data.iteritems()
-            if identifier not in self._child_ids
-        ]
-
-    @property
-    def _child_ids(self):
-        child_ids = [
+        all_child_labels = set(itertools.chain.from_iterable(
             concept['child_ids']
-            for concept in self._data.values()
-        ]
-        return set(itertools.chain(*child_ids))
+            for concept in data
+        ))
+        self._topmost_labels = set(self._data) - all_child_labels
 
-    def get_concept(self, identifier):
-        return self._data[identifier]
+    @property
+    def topmost_labels(self):
+        return self._topmost_labels
 
-    def get_main_concepts(self, identifier):
-        if identifier not in self._child_ids:
-            return [self.get_concept(identifier)]
+    def get_topmost_labels(self, labels):
+        return list(self._generate_topmost_labels(labels))
 
-        main_ids = [
-            concept['id']
-            for concept in self._data.values()
-            if identifier in concept['child_ids']
-        ]
+    def _generate_topmost_labels(self, labels):
+        for label in labels:
+            if label in self._topmost_labels:
+                yield label
 
-        return itertools.chain.from_iterable(
-            self.get_main_concepts(main_id)
-            for main_id in main_ids
-        )
+                continue
+
+            parent_labels = [
+                concept['id']
+                for concept in self._data.values()
+                if label in concept['child_ids']
+            ]
+
+            for topmost_label in self._generate_topmost_labels(parent_labels):
+                yield topmost_label
