@@ -2,7 +2,7 @@ import sklearn.metrics
 
 
 def batches(*datasets, **kwargs):
-    batch_size = kwargs.pop('batch_size', 1000)
+    batch_size = kwargs.pop('batch_size', 256)
 
     assert datasets
     assert not kwargs
