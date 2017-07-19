@@ -5,7 +5,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-import python_speech_features as psf
 
 import audiolabel.audio
 import audiolabel.ontology
@@ -13,7 +12,7 @@ import audiolabel.stats
 
 
 ONTOLOGY = audiolabel.ontology.read(
-    'dataset/ontology/ontology.json',
+    'ontology/ontology.json',
 )
 
 
@@ -40,7 +39,9 @@ def min_max_normalize(features, min_features, max_features):
 
 
 def extract_features(data, samplerate):
-    return psf.mfcc(
+    import python_speech_features
+
+    return python_speech_features.mfcc(
         data,
         samplerate=samplerate,
         winlen=0.1,
@@ -93,8 +94,6 @@ def calculate_and_store_features(filepath, max_samples=None):
     )
 
     dataframe = pad_samples(dataframe)
-
-#    import pdb; pdb.set_trace()
 
     print 'Storing dataframe to HDF store...'
 

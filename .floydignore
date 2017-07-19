@@ -1,0 +1,8 @@
+*.pdf
+*.swp
+*.wav
+*.pyc
+dataset
+sandbox
+pp_data
+logs
