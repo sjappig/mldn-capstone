@@ -6,9 +6,18 @@ import tensorflow as tf
 import audiolabel.util
 
 
-_Graph = collections.namedtuple('_Graph', ('x_in', 'nonpadded_lengths_in', 'logits_out', 'y_out', 'is_training'))
+_Graph = collections.namedtuple('_Graph', (
+    'x_in',
+    'nonpadded_lengths_in',
+    'logits_out',
+    'y_out',
+    'is_training_in',
+))
 
-_Trainable = collections.namedtuple('_Optimizer', ('y_in', 'loss_out', 'optimization_operation_out'))
+_Trainable = collections.namedtuple('_Optimizer', (
+    'loss_out',
+    'optimization_operation_out',
+))
 
 
 def _summary(name, tensor):
@@ -17,13 +26,15 @@ def _summary(name, tensor):
     tf.summary.scalar('{}_mean'.format(name), tf.reduce_mean(tensor))
 
 
-def _rnn_layers(x, nonpadded_lengths, shape):
-    cell = tf.nn.rnn_cell.MultiRNNCell([
-        tf.nn.rnn_cell.LSTMCell(
-            shape[1], initializer=tf.orthogonal_initializer(gain=0.1)
-        )
-        for _ in range(0, shape[0])
-    ])
+def _weight_initializer():
+    return tf.orthogonal_initializer(gain=0.1)
+
+
+def _rnn_layers(x, nonpadded_lengths, num_units):
+    cell = tf.nn.rnn_cell.LSTMCell(
+        num_units,
+        initializer=_weight_initializer(),
+    )
 
     rnn_outputs, _ =  tf.nn.dynamic_rnn(
         cell,
@@ -46,78 +57,121 @@ def _rnn_layers(x, nonpadded_lengths, shape):
     return output
 
 
+def _dropout_layer(x):
+    return tf.layers.dropout(inputs=x, rate=0.25)
+
 def _output_layer(x, num_outputs, is_training):
     W_output = tf.get_variable(
         "W_output",
         shape=[x.shape[1].value, num_outputs],
-        initializer=tf.orthogonal_initializer(gain=0.1),
+        initializer=_weight_initializer(),
     )
-#    W_output = tf.Variable(tf.truncated_normal([
-#        x.shape[1].value,
-#        num_outputs,
-#    ], stddev=0.01))
 
     b_output = tf.Variable(tf.zeros(num_outputs))
 
-    _summary('W_output', W_output)
-    _summary('b_output', b_output)
-
     activations = tf.add(tf.matmul(x, W_output), b_output)
 
-    return tf.contrib.layers.batch_norm(activations, is_training=is_training)
+    return tf.contrib.layers.batch_norm(activations, is_training=is_training, fused=True, center=True)
 
 
-def _graph(num_classes, num_features, padded_length, rnn_shape):
-    x = tf.placeholder(tf.float32, [None, padded_length, num_features], name='x')
+def _graph(x_batch, len_batch, num_classes, num_features, padded_length, rnn_num_units):
+    x_in = tf.placeholder_with_default(
+        np.zeros([1, padded_length, num_features], dtype=np.float32),
+        [None, padded_length, num_features],
+        name='x_in',
+    )
+    nonpadded_lengths_in = tf.placeholder_with_default(
+        np.zeros([1], dtype=np.int32),
+        [None],
+        name='nonpadded_lengths_in',
+    )
+    is_training_in = tf.placeholder(tf.bool, name='is_training_in')
 
-    is_training = tf.placeholder(tf.bool, name='is_training')
+    x, nonpadded_lengths = tf.cond(
+        is_training_in,
+        lambda: (x_batch, len_batch),
+        lambda: (x_in, nonpadded_lengths_in),
+    )
 
-    nonpadded_lengths = tf.placeholder(tf.int32, [None], name='nonpadded_lengths')
+    rnn_output = _rnn_layers(x, nonpadded_lengths, rnn_num_units)
 
-    rnn_output = _rnn_layers(x, nonpadded_lengths, shape=rnn_shape)
+    dropout_output = _dropout_layer(rnn_output)
 
-    logits = _output_layer(rnn_output, num_classes, is_training)
-
-    _summary('logits', logits)
+    logits = _output_layer(dropout_output, num_classes, is_training_in)
 
     predictor = tf.round(tf.nn.sigmoid(logits))
 
-    return _Graph(x, nonpadded_lengths, logits, predictor, is_training)
+    return _Graph(x_in, nonpadded_lengths_in, logits, predictor, is_training_in)
 
 
-def _trainable(graph, **optimizer_args):
-    y = tf.placeholder(tf.float32, graph.y_out.shape, name='y')
+def _trainable(graph, y_batch, learning_rate):
+    global_step = tf.Variable(0, trainable=False)
 
     loss = tf.losses.sigmoid_cross_entropy(
-        y,
-        label_smoothing=0.2,
+        y_batch,
+        label_smoothing=0.1,
         logits=graph.logits_out,
     )
 
     tf.summary.scalar('loss', loss)
 
-    optimization_operation = tf.train.AdamOptimizer(**optimizer_args).minimize(loss)
+    decaying_learning = tf.train.exponential_decay(learning_rate, global_step, 500, 0.99)
 
-    return _Trainable(y, loss, optimization_operation)
+    tf.summary.scalar('learning_rate', decaying_learning)
+
+    optimization_operation = tf.train.AdamOptimizer(
+        learning_rate=decaying_learning
+    ).minimize(loss, global_step=global_step)
+
+    return _Trainable(loss, optimization_operation)
 
 
-def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val_lengths, batch_size=256, num_epochs=2000):
+def _predict(sess, graph, x, lengths):
+    return sess.run(graph.y_out, feed_dict={
+        graph.x_in: x,
+        graph.nonpadded_lengths_in: lengths,
+        graph.is_training_in: False,
+    })
+
+
+def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, validation_lengths, batch_size=256, num_epochs=2000):
     num_classes = len(y_train[0])
     num_features = len(x_train[0][0])
     padded_length = len(x_train[0])
+
+    batch_size = min(len(x_train), batch_size)
 
     print '{} classes, {} features, padded length is {}'.format(
         num_classes,
         num_features,
         padded_length,
     )
+
+    x_tensor = tf.convert_to_tensor(x_train, dtype=tf.float32)
+    y_tensor = tf.convert_to_tensor(y_train, dtype=tf.float32)
+    len_tensor = tf.convert_to_tensor(train_lengths, dtype=tf.int32)
+
+    num_batches = int(np.ceil(len(x_train) / float(batch_size)))
+
+    x_batch, len_batch, y_batch = tf.train.batch(
+        [x_tensor, len_tensor, y_tensor],
+        batch_size=batch_size,
+        enqueue_many=True,
+    )
+
     graph = _graph(
+        x_batch=x_batch,
+        len_batch=len_batch,
         num_classes=num_classes,
         num_features=num_features,
         padded_length=padded_length,
-        rnn_shape=(1, 64),
+        rnn_num_units=64,
     )
-    trainable = _trainable(graph, learning_rate=0.001)
+    trainable = _trainable(
+        graph,
+        y_batch=y_batch,
+        learning_rate=0.008,
+    )
 
     with tf.Session() as sess:
         batch_idx = 0
@@ -126,39 +180,35 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
 
         sess.run(tf.global_variables_initializer())
 
-        for epoch in range(0, num_epochs):
-            batches = audiolabel.util.batches(x_train, y_train, train_lengths, batch_size=batch_size)
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(coord=coord)
 
+        for epoch in range(0, num_epochs):
             losses = []
 
-            for x_batch, y_batch, len_batch in batches:
+            for batch in range(0, num_batches):
                 loss, _, summary = sess.run([
                     trainable.loss_out, trainable.optimization_operation_out, merged
                 ], feed_dict={
-                    graph.x_in: x_batch,
-                    graph.nonpadded_lengths_in: len_batch,
-                    graph.is_training: True,
-                    trainable.y_in: y_batch,
+                    graph.is_training_in: True,
                 })
                 writer.add_summary(summary, batch_idx)
                 batch_idx = batch_idx + 1
                 losses.append(loss)
 
-            y_pred, logits = sess.run([graph.y_out, graph.logits_out], feed_dict={
-                graph.x_in: x_train,
-                graph.nonpadded_lengths_in: train_lengths,
-                graph.is_training: False,
-            })
+            if (epoch % 50 == 0)  or (epoch + 1 == num_epochs):
+                y_pred = _predict(sess, graph, x_train, train_lengths)
+                f1_train = audiolabel.util.f1_score(y_train, y_pred)
 
-            f1_train = audiolabel.util.f1_score(y_train, y_pred)
+                y_pred = _predict(sess, graph, x_validation, validation_lengths)
+                f1_validation = audiolabel.util.f1_score(y_validation, y_pred)
 
-            y_pred, logits = sess.run([graph.y_out, graph.logits_out], feed_dict={
-                graph.x_in: x_validation,
-                graph.nonpadded_lengths_in: val_lengths,
-                graph.is_training: False,
-            })
+                print 'Epoch {}: F1-score {}, {} ; loss: {}'.format(
+                    epoch,
+                    f1_train,
+                    f1_validation,
+                    np.sum(losses),
+                )
 
-            f1_validation = audiolabel.util.f1_score(y_validation, y_pred)
-            print 'Epoch {}: F1-score {}, {}; loss: {}'.format(epoch, f1_train, f1_validation, np.sum(losses))
-#            import pdb; pdb.set_trace()
-
+        coord.request_stop()
+        coord.join(threads)

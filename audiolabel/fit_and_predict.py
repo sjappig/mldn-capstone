@@ -28,13 +28,16 @@ def read_and_split_datasets(filepath, dataset_size=None, test_size=0.2):
     if dataset_size is not None:
         dataset_size = min(len(samples), dataset_size)
 
-        print 'Using only {} samples'.format(dataset_size)
+    else:
+        dataset_size = len(samples)
 
-        shuffled_indices = np.random.permutation(dataset_size)
+    print 'Using {} samples'.format(dataset_size)
 
-        samples = samples[shuffled_indices]
-        labels = labels[shuffled_indices]
-        nonpadded_lengths = nonpadded_lengths[shuffled_indices]
+    shuffled_indices = np.random.permutation(dataset_size)
+
+    samples = samples[shuffled_indices]
+    labels = labels[shuffled_indices]
+    nonpadded_lengths = nonpadded_lengths[shuffled_indices]
 
     x_train, x_validation, y_train, y_validation, lengths_train, lengths_validation = (
         sklearn.model_selection.train_test_split(
