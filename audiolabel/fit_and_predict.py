@@ -1,8 +1,6 @@
 import argparse
 import collections
 
-import numpy as np
-import pandas as pd
 import sklearn.model_selection
 
 import audiolabel.baseline
@@ -13,44 +11,22 @@ import audiolabel.zero_hypothesis
 
 ClassifierType = collections.namedtuple('ClassifierType', ('name', 'create'))
 
-Dataset = collections.namedtuple('Dataset', ('name', 'x', 'y', 'nonpadded_lengths'))
 
-
-def read_and_split_datasets(filepath, dataset_size=None, test_size=0.2):
-    data = pd.read_hdf(filepath, 'data')
-
-    samples = np.array(data['samples'].tolist())
-
-    labels = np.array(data['labels_ohe'].tolist())
-
-    nonpadded_lengths = np.array(data['nonpadded_length'].tolist())
-
-    if dataset_size is not None:
-        dataset_size = min(len(samples), dataset_size)
-
-    else:
-        dataset_size = len(samples)
-
-    print 'Using {} samples'.format(dataset_size)
-
-    shuffled_indices = np.random.permutation(dataset_size)
-
-    samples = samples[shuffled_indices]
-    labels = labels[shuffled_indices]
-    nonpadded_lengths = nonpadded_lengths[shuffled_indices]
+def read_and_split_datasets(filepath, dataset_size, test_size=0.2):
+    dataset = audiolabel.util.read_dataset(filepath, dataset_size)
 
     x_train, x_validation, y_train, y_validation, lengths_train, lengths_validation = (
         sklearn.model_selection.train_test_split(
-            samples,
-            labels,
-            nonpadded_lengths,
+            dataset.x,
+            dataset.y,
+            dataset.nonpadded_lengths,
             test_size=test_size,
         )
     )
 
     return (
-        Dataset('train', x_train, y_train, lengths_train),
-        Dataset('validation', x_validation, y_validation, lengths_validation),
+        audiolabel.util.Dataset('train', x_train, y_train, lengths_train),
+        audiolabel.util.Dataset('validation', x_validation, y_validation, lengths_validation),
     )
 
 
