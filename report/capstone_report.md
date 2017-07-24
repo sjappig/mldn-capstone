@@ -36,6 +36,21 @@ where label is from predefined set. The approach will be supervised, i.e. system
 this prediction by showing simple-label pairs. Precise predictions with coarse labels are preferred
 over imprecise with detailed labels.
 
+First task is to download and store samples. The samples are segments of YouTube-videos, but as we
+are interested in the audio of those videos, the audio must be extracted from the videos.
+
+After the samples are stored locally, preprocessing can be done. Our preprocess-part will consist of
+extracting features, min-max-normalization, label hot-encoding and making audio samples to have equal
+lengths using padding.
+
+Using output from the preprocess, actual models are fitted for zero-hypothesis, baseline and RNN model.
+Model fit is evaluated against validation set, which is randomly drawn subset of training set. Depending
+on the evaluation result, hyperparameters (and possibly features) are tuned and models are re-evaluated
+until RNN model does not seem to improve with reasonable amount of work. For this part we might use
+smaller subset of the training set to make the iterations faster (full run approx 17h on CPU).
+
+When final model hyperparameters and features are found, full training set is used to train models,
+and full testing set is used to get final scores.
 
 In this section, you will want to clearly define the problem that you are trying to solve, including the strategy (outline of tasks) you will use to achieve the desired solution. You should also thoroughly discuss what the intended solution will be for this problem. Questions to ask yourself when writing this section:
 - _Is the problem statement clearly defined? Will the reader understand what you are expecting to solve?_
@@ -48,7 +63,7 @@ Balanced error measure which is easy to understand, and is comparable with
 values from [2] is **F1-score**: Harmonic mean of precision and recall.
 Mathematical equation for F1 is *2\*precision\*recall/(precision+recall)*.
 
-Also precision is used.
+F1-scores are inspected both class-wise and weighted average over classes.
 
 In this section, you will need to clearly define the metrics or calculations you will use to measure performance of a model or result in your project. These calculations and metrics should be justified based on the characteristics of the problem and problem domain. Questions to ask yourself when writing this section:
 - _Are the metrics you’ve chosen to measure the performance of your models clearly discussed and defined?_
@@ -59,6 +74,26 @@ In this section, you will need to clearly define the metrics or calculations you
 _(approx. 2-4 pages)_
 
 ### Data Exploration
+
+Training data set has below class distribution:
+
+IMAGE
+
+As we can see, there is slight imbalance between classes. To compensate this,
+we will use weighted cost function, which emphasizes the classes with less
+samples.
+
+Samples of the data have variable lengths; however, as seen from below table,
+the full lengths samples dominate, and the short values seem to be more like outliers.
+
+TABLE
+
+
+The features seem to also have some values that are outlier according to Tukey's test, but removing them
+does not seem doable, as they are spread across different samples. However, this gives indication that
+we probably want to use some regularization when training model, as we might not be able to trust
+the data completely.
+
 In this section, you will be expected to analyze the data you are using for the problem. This data can either be in the form of a dataset (or datasets), input data (or input files), or even an environment. The type of data should be thoroughly described and, if possible, have basic statistics and information presented (such as discussion of input features or defining characteristics about the input or environment). Any abnormalities or interesting qualities about the data that may need to be addressed have been identified (such as features that need to be transformed or the possibility of outliers). Questions to ask yourself when writing this section:
 - _If a dataset is present for this problem, have you thoroughly discussed certain features about the dataset? Has a data sample been provided to the reader?_
 - _If a dataset is present for this problem, are statistics about the dataset calculated and reported? Have any relevant results from this calculation been discussed?_
