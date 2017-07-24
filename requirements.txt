@@ -6,4 +6,4 @@ jupyter
 python_speech_features
 scipy
 tables
-
+matplotlib
