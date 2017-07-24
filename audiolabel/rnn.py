@@ -104,12 +104,27 @@ def _graph(x_batch, len_batch, num_classes, num_features, padded_length, rnn_num
     return _Graph(x_in, nonpadded_lengths_in, logits, predictor, is_training_in)
 
 
+def _get_weights(y):
+    # These weights are calculated from the whole training set.
+    # Each weight is inversely proportional to corresponding class frequency.
+    class_weights = tf.constant([
+        1., 8.54679803, 1.1034088, 3.55824446, 1.04745231, 2.66513057, 3.76519097
+    ])
+    weights = tf.multiply(y, class_weights)
+    weights = tf.reduce_mean(weights, axis=1)
+
+    return tf.reshape(weights, [-1, 1])
+
+
 def _trainable(graph, y_batch, learning_rate):
     global_step = tf.Variable(0, trainable=False)
 
+    weights = _get_weights(y_batch)
+
     loss = tf.losses.sigmoid_cross_entropy(
         y_batch,
-        label_smoothing=0.1,
+        weights=weights,
+#        label_smoothing=0.1,
         logits=graph.logits_out,
     )
 
