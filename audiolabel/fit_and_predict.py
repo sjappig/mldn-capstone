@@ -21,6 +21,7 @@ def read_and_split_datasets(filepath, dataset_size, test_size=0.2):
             dataset.y,
             dataset.nonpadded_lengths,
             test_size=test_size,
+            stratify=dataset.y,
         )
     )
 
