@@ -83,8 +83,10 @@ As we can see, there is slight imbalance between classes. To compensate this,
 we will use weighted cost function, which emphasizes the classes with less
 samples.
 
-Samples of the data have variable lengths; however, as seen from below table,
+Samples of the data have variable lengths; however, as seen from above table,
 the full lengths samples dominate, and the short values seem to be more like outliers.
+However, out RNN model is able to work with variable lengths (even though the actual
+tensors provided as input must have fixed lengths, the model will discard the padding).
 
 TABLE
 
@@ -107,6 +109,74 @@ In this section, you will need to provide some form of visualization that summar
 - _If a plot is provided, are the axes, title, and datum clearly defined?_
 
 ### Algorithms and Techniques
+
+#### Benchmark models
+
+In this project will be using two simple models which performance will be compared against
+our final model:
+
+ * Zero-hypothesis: Model that predicts always the same (first) label.
+
+ * Logistic regression: Linear model that "compresses" its output using logistic function.
+   For multilabel classification, multiple models are trained, each giving probability of one class.
+
+These models will use the same features as the final model.
+
+#### Mel-Frequency Cepstral Coefficients
+
+Mel-Frequency Cepstral Coefficients (MFCC) are a way to present spectral information
+of audio. They are usually calculated using short overlapping frames of audio.
+
+Normal cepstral coefficients present the change in the spectrum; by picking the first few
+cepstral coefficient we are able to capture the envelope of the spectrum. With MFCC, we
+are also taking account how human auditory system works by dividing the spectrum using
+Mel-scale, which approximates human hearing.
+
+Using MFCCs as features reduces the dimensionality of the problem, compared to raw audio.
+As they model the data similar manner as human hearing system, they should be able to capture 
+relevant information that allows humans (and in this case, hopefully machines) to recognize
+the audio samples.
+
+#### Recurrent Neural Network
+
+Recurrent Neural Networks (RNN) are neural networks that use their output from the previous time step
+t-1 when calculating output for the timestep t. Also the errors are propagated through timesteps backwards.
+The chain rule that is used in all neural networks applies also here.
+ 
+Long Short-Term Memory (LSTM) units are building blocks for RNN that are able to learn over many time steps.
+LSTM responds to vanishing/exploding gradient problems which may occur in long sequences by provding the
+previous "internal state" of the unit as is to next timestep, and gating that state, input and output by 
+"fuzzy" gates (i.e. if traditional logic gates can be seen as multiplication of 0 or 1, these gates multiply
+using value which is [0,1]).
+
+By using RNN, we are able to capture temporal information of audio samples. With LSTM, our model can learn
+dependencies which span over whole sequence (which are mostly 199 feature vectors long).
+
+#### Dropout, batch normalization and weight initialization
+
+Dropout is a regularization technique to neural networks. It sets some of the outputs of the 
+previous layer to zero with some probability. This counters directly against overfitting, as
+the model discards data randomly and is this way pushed to learn latent variables.
+
+Batch normalization is method which helps relaxing tuning required for weights and learning rate
+(it is also reported to have other many other benefits). It is used to normalize input for activation
+function to have mean of 0 and variance of 1.
+
+For weight initializing orthogonal initializer is used. It has been reported to have
+positive effect on controlling vanishing/exploding gradients and in some cases also
+making the models to converge faster.
+
+#### Optimizer and learning rate
+
+
+#### Multi-label output and label weights
+
+Since the output for our models can have multiple labels, we will be using sigmoid activation for each output
+layer logit independently, and interpret the result as probability of corresponding class being present.
+If the probability is over 1/2, our final prediction is that the class is present, and vice versa.
+
+Label weights that are used to counter imbalanced distribution of classes are calcuated using class frequencies.
+
 In this section, you will need to discuss the algorithms and techniques you intend to use for solving the problem. You should justify the use of each one based on the characteristics of the problem and the problem domain. Questions to ask yourself when writing this section:
 - _Are the algorithms you will use, including any default variables/parameters in the project clearly defined?_
 - _Are the techniques to be used thoroughly discussed and justified?_
@@ -122,18 +192,66 @@ In this section, you will need to provide a clearly defined benchmark result or 
 _(approx. 3-5 pages)_
 
 ### Data Preprocessing
+
+ * Audio is extraced from videos and stored with sample rate 16 kHz.
+
+ * 13 MFCC features are calculated with windown length 0.1 seconds and overlap of 0.05 seconds
+
+ * Top-level labels for audio samples are gathered from the ontology tree and k-hot-encoded
+
+ * Each feature is min-max-normalized. This is done even batch normalization is used at parts of
+   the model, as adding the batch normalization inside TensorFlow RNN did not seems easily doable.
+ 
+ * Sequences were zero-padded to have equal lengths.
+
 In this section, all of your preprocessing steps will need to be clearly documented, if any were necessary. From the previous section, any of the abnormalities or characteristics that you identified about the dataset will be addressed and corrected here. Questions to ask yourself when writing this section:
 - _If the algorithms chosen require preprocessing steps like feature selection or feature transformations, have they been properly documented?_
 - _Based on the **Data Exploration** section, if there were abnormalities or characteristics that needed to be addressed, have they been properly corrected?_
 - _If no preprocessing is needed, has it been made clear why?_
 
 ### Implementation
+
+#### Getting the data
+
+Downloading the balanced subsets of the AudioSet videos and extracting the audio from them was done using
+modified version of download.sh. Modifications to original tool were:
+
+Downloading all the samples tookseveral days even with good quality Internet-connection. However for testing
+purposes, download-script can be canceled e.g. after few hundred samples are ready.
+
+#### Preprocessing
+
+For preprocessing, numpy, pandas and library python_speech_features were used. Preprocess step is runnable as
+separate Python-script, and creates storage single file with the preprocessed data. This file is fed to
+script doing the model fitting and predictions.
+
+#### Baseline models
+
+Zero-hypothesis and logistic regression were implemented using scikit-learn.
+
+#### RNN
+
+#### Environment
+
+Both personal computer and FloydHub were used. As for FloydHub only trial account was available, run-time
+with expirements done there was limited to one hour.
+
 In this section, the process for which metrics, algorithms, and techniques that you implemented for the given data will need to be clearly documented. It should be abundantly clear how the implementation was carried out, and discussion should be made regarding any complications that occurred during this process. Questions to ask yourself when writing this section:
 - _Is it made clear how the algorithms and techniques were implemented with the given datasets or input data?_
 - _Were there any complications with the original metrics or techniques that required changing prior to acquiring a solution?_
 - _Was there any part of the coding process (e.g., writing complicated functions) that should be documented?_
 
 ### Refinement
+
+Since the model training time was rather long with the whole training data (with only CPU, roughly one day),
+parameter estimation was done with smaller subset of 1000 randomly drawn samples from training set, which was
+furthermore divided to training and validation sets of 800 and 200 samples, respectively.
+
+With this split, number of LSTM cells used was tuned, as well as learning rate and number of epochs.
+There would be number of other tunable parameters as well, but the scope of this project seemed start
+to grow too big.
+
+
 In this section, you will need to discuss the process of improvement you made upon the algorithms and techniques you used in your implementation. For example, adjusting parameters for certain models to acquire improved solutions would fall under the refinement category. Your initial and final solutions should be reported, as well as any significant intermediate results as necessary. Questions to ask yourself when writing this section:
 - _Has an initial solution been found and clearly reported?_
 - _Is the process of improvement clearly documented, such as what techniques were used?_
