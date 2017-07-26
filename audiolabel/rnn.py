@@ -27,7 +27,7 @@ def _summary(name, tensor):
 
 
 def _weight_initializer():
-    return tf.orthogonal_initializer(gain=0.1)
+    return tf.orthogonal_initializer()
 
 
 def _rnn_layers(x, nonpadded_lengths, num_units):
@@ -142,14 +142,21 @@ def _trainable(graph, y_batch, learning_rate):
 
 
 def _predict(sess, graph, x, lengths):
-    return sess.run(graph.y_out, feed_dict={
-        graph.x_in: x,
-        graph.nonpadded_lengths_in: lengths,
-        graph.is_training_in: False,
-    })
+    y_batches = []
+
+    for x_batch, len_batch in audiolabel.util.batches(x, lengths, batch_size=2048):
+        y_batch = sess.run(graph.y_out, feed_dict={
+            graph.x_in: x_batch,
+            graph.nonpadded_lengths_in: len_batch,
+            graph.is_training_in: False,
+        })
+
+        y_batches.append(y_batch)
+
+    return np.concatenate(y_batches)
 
 
-def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, validation_lengths, batch_size=256, num_epochs=2000):
+def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, validation_lengths, batch_size=256, num_epochs=1000):
     num_classes = len(y_train[0])
     num_features = len(x_train[0][0])
     padded_length = len(x_train[0])
@@ -180,7 +187,7 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
         num_classes=num_classes,
         num_features=num_features,
         padded_length=padded_length,
-        rnn_num_units=64,
+        rnn_num_units=512,
     )
     trainable = _trainable(
         graph,
