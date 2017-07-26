@@ -7,3 +7,5 @@ sandbox
 pp_data
 logs
 explore.ipynb
+full_run*
+test_runs

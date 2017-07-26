@@ -40,14 +40,14 @@ First task is to download and store samples. The samples are segments of YouTube
 are interested in the audio of those videos, the audio must be extracted from the videos.
 
 After the samples are stored locally, preprocessing can be done. Our preprocess-part will consist of
-extracting features, min-max-normalization, label hot-encoding and making audio samples to have equal
-lengths using padding.
+extraction of features, min-max-normalization, label hot-encoding and padding audio samples to equal
+lengths.
 
-Using output from the preprocess, actual models are fitted for zero-hypothesis, baseline and RNN model.
+Using output from the preprocess, zero-hypothesis, baseline and RNN model are fitted.
 Model fit is evaluated against validation set, which is randomly drawn subset of training set. Depending
 on the evaluation result, hyperparameters (and possibly features) are tuned and models are re-evaluated
 until RNN model does not seem to improve with reasonable amount of work. For this part we might use
-smaller subset of the training set to make the iterations faster (full run approx 17h on CPU).
+smaller subset of the training set to make the iterations faster.
 
 When final model hyperparameters and features are found, full training set is used to train models,
 and full testing set is used to get final scores.
@@ -132,7 +132,7 @@ cepstral coefficient we are able to capture the envelope of the spectrum. With M
 are also taking account how human auditory system works by dividing the spectrum using
 Mel-scale, which approximates human hearing.
 
-Using MFCCs as features reduces the dimensionality of the problem, compared to raw audio.
+Using MFCCs as features reduces the dimensionality of the problem compared to raw audio.
 As they model the data similar manner as human hearing system, they should be able to capture 
 relevant information that allows humans (and in this case, hopefully machines) to recognize
 the audio samples.
@@ -147,20 +147,20 @@ Long Short-Term Memory (LSTM) units are building blocks for RNN that are able to
 LSTM responds to vanishing/exploding gradient problems which may occur in long sequences by provding the
 previous "internal state" of the unit as is to next timestep, and gating that state, input and output by 
 "fuzzy" gates (i.e. if traditional logic gates can be seen as multiplication of 0 or 1, these gates multiply
-using value which is [0,1]).
+using value which is [0, 1]).
 
 By using RNN, we are able to capture temporal information of audio samples. With LSTM, our model can learn
 dependencies which span over whole sequence (which are mostly 199 feature vectors long).
 
 #### Dropout, batch normalization and weight initialization
 
-Dropout is a regularization technique to neural networks. It sets some of the outputs of the 
-previous layer to zero with some probability. This counters directly against overfitting, as
+Dropout is a regularization technique to neural networks. It sets randomly outputs of the 
+previous layer to zero with some given probability. This counters directly against overfitting, as
 the model discards data randomly and is this way pushed to learn latent variables.
 
 Batch normalization is method which helps relaxing tuning required for weights and learning rate
-(it is also reported to have other many other benefits). It is used to normalize input for activation
-function to have mean of 0 and variance of 1.
+(it is also reported to have other many other benefits). It tries to normalize its input to have mean of 0
+and variance of 1.
 
 For weight initializing orthogonal initializer is used. It has been reported to have
 positive effect on controlling vanishing/exploding gradients and in some cases also
@@ -168,14 +168,18 @@ making the models to converge faster.
 
 #### Optimizer and learning rate
 
+Adam optimization algorithm, which is used in this project, is an optimizer that adapts the learning rate by itself.
+However, the optimizer is provided with maximum learning rate. This maximum value will be decayed, to make the
+model stabilize as iterations proceed.
 
 #### Multi-label output and label weights
 
-Since the output for our models can have multiple labels, we will be using sigmoid activation for each output
-layer logit independently, and interpret the result as probability of corresponding class being present.
+Since the output for our models can have multiple labels, we will be using sigmoid activation in each output
+node independently, and interpret the result as probability of corresponding class being present.
 If the probability is over 1/2, our final prediction is that the class is present, and vice versa.
 
-Label weights that are used to counter imbalanced distribution of classes are calcuated using class frequencies.
+Label weights that are used to counter imbalanced distribution of classes are calcuated using class frequenciesi
+in full training set.
 
 In this section, you will need to discuss the algorithms and techniques you intend to use for solving the problem. You should justify the use of each one based on the characteristics of the problem and the problem domain. Questions to ask yourself when writing this section:
 - _Are the algorithms you will use, including any default variables/parameters in the project clearly defined?_
@@ -195,14 +199,16 @@ _(approx. 3-5 pages)_
 
  * Audio is extraced from videos and stored with sample rate 16 kHz.
 
- * 13 MFCC features are calculated with windown length 0.1 seconds and overlap of 0.05 seconds
+ * 13 MFCC features are calculated with windown length 0.1 seconds and overlap of 0.05 seconds.
 
- * Top-level labels for audio samples are gathered from the ontology tree and k-hot-encoded
+ * Top-level labels for audio samples are gathered from the ontology tree and k-hot-encoded.
 
  * Each feature is min-max-normalized. This is done even batch normalization is used at parts of
    the model, as adding the batch normalization inside TensorFlow RNN did not seems easily doable.
  
- * Sequences were zero-padded to have equal lengths.
+ * Sequences are zero-padded to have equal lengths. Even though RNN is able to handle variable length
+   sequences, the sequences used should have equal shapes and then the results are picked according to
+   original lenghts.
 
 In this section, all of your preprocessing steps will need to be clearly documented, if any were necessary. From the previous section, any of the abnormalities or characteristics that you identified about the dataset will be addressed and corrected here. Questions to ask yourself when writing this section:
 - _If the algorithms chosen require preprocessing steps like feature selection or feature transformations, have they been properly documented?_
@@ -227,15 +233,18 @@ script doing the model fitting and predictions.
 
 #### Baseline models
 
-Zero-hypothesis and logistic regression were implemented using scikit-learn.
+Zero-hypothesis and logistic regression were implemented using scikit-learn. Logistic regression was wrapped
+with one vs. many -ensemble classifier to create classifiers able to do multilabel classification.
 
 #### RNN
 
+RNN implementation was done with TensorFlow. Below is the network graph.
+
+
 #### Environment
 
-Both personal computer and FloydHub were used. As for FloydHub only trial account was available, run-time
-with expirements done there was limited to one hour.
-
+Both personal computer and FloydHub were used.
+ 
 In this section, the process for which metrics, algorithms, and techniques that you implemented for the given data will need to be clearly documented. It should be abundantly clear how the implementation was carried out, and discussion should be made regarding any complications that occurred during this process. Questions to ask yourself when writing this section:
 - _Is it made clear how the algorithms and techniques were implemented with the given datasets or input data?_
 - _Were there any complications with the original metrics or techniques that required changing prior to acquiring a solution?_
@@ -243,13 +252,16 @@ In this section, the process for which metrics, algorithms, and techniques that 
 
 ### Refinement
 
-Since the model training time was rather long with the whole training data (with only CPU, roughly one day),
+Since the model training time was rather long with the whole training data (depending on the model complexity, from one day to several days)
 parameter estimation was done with smaller subset of 1000 randomly drawn samples from training set, which was
 furthermore divided to training and validation sets of 800 and 200 samples, respectively.
 
-With this split, number of LSTM cells used was tuned, as well as learning rate and number of epochs.
-There would be number of other tunable parameters as well, but the scope of this project seemed start
-to grow too big.
+With this split, number of LSTM cells used was tuned and the affect of batch normalization was tested.
+There would be number of other tunable parameters as well, but the scope of this project seemed start to grow too big.
+
+One problem that was encountered, had to do with stability of Adam optimization. The loss seemingly randomly started to increase
+a lot after tens of thousands iterations were run. Fortunately, this was known feature of Adam, and the TensorFlow documentation
+mentioned epsilon parameter and suggested adjustment for that.
 
 
 In this section, you will need to discuss the process of improvement you made upon the algorithms and techniques you used in your implementation. For example, adjusting parameters for certain models to acquire improved solutions would fall under the refinement category. Your initial and final solutions should be reported, as well as any significant intermediate results as necessary. Questions to ask yourself when writing this section:
