@@ -43,8 +43,8 @@ def _rnn_layers(x, nonpadded_lengths, num_units):
         dtype=tf.float32
     )
 
-    for idx in range(0, len(cell.weights)):
-        _summary('rnn_weights_{}'.format(idx), cell.weights[idx])
+#    for idx in range(0, len(cell.weights)):
+#        _summary('rnn_weights_{}'.format(idx), cell.weights[idx])
 
     # Pick the last output without padded values
     output_indices = tf.stack([
@@ -75,6 +75,8 @@ def _output_layer(x, num_outputs, is_training):
 
 
 def _graph(x_batch, len_batch, num_classes, num_features, padded_length, rnn_num_units):
+    print 'rnn_num_units: {}'.format(rnn_num_units)
+
     x_in = tf.placeholder_with_default(
         np.zeros([1, padded_length, num_features], dtype=np.float32),
         [None, padded_length, num_features],
@@ -95,9 +97,9 @@ def _graph(x_batch, len_batch, num_classes, num_features, padded_length, rnn_num
 
     rnn_output = _rnn_layers(x, nonpadded_lengths, rnn_num_units)
 
-    dropout_output = _dropout_layer(rnn_output)
+#    dropout_output = _dropout_layer(rnn_output)
 
-    logits = _output_layer(dropout_output, num_classes, is_training_in)
+    logits = _output_layer(rnn_output, num_classes, is_training_in)
 
     predictor = tf.round(tf.nn.sigmoid(logits))
 
@@ -116,27 +118,20 @@ def _get_weights(y):
     return tf.reshape(weights, [-1, 1])
 
 
-def _trainable(graph, y_batch, learning_rate):
-    global_step = tf.Variable(0, trainable=False)
-
+def _trainable(graph, y_batch, **optimizer_args):
     weights = _get_weights(y_batch)
 
     loss = tf.losses.sigmoid_cross_entropy(
         y_batch,
         weights=weights,
-#        label_smoothing=0.1,
         logits=graph.logits_out,
     )
 
-    tf.summary.scalar('loss', loss)
-
-    decaying_learning = tf.train.exponential_decay(learning_rate, global_step, 500, 0.99)
-
-    tf.summary.scalar('learning_rate', decaying_learning)
+#    tf.summary.scalar('loss', loss)
 
     optimization_operation = tf.train.AdamOptimizer(
-        learning_rate=decaying_learning
-    ).minimize(loss, global_step=global_step)
+        **optimizer_args
+    ).minimize(loss)
 
     return _Trainable(loss, optimization_operation)
 
@@ -156,7 +151,7 @@ def _predict(sess, graph, x, lengths):
     return np.concatenate(y_batches)
 
 
-def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, validation_lengths, batch_size=256, num_epochs=1000):
+def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, validation_lengths, batch_size=256, num_epochs=3000):
     num_classes = len(y_train[0])
     num_features = len(x_train[0][0])
     padded_length = len(x_train[0])
@@ -192,13 +187,14 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
     trainable = _trainable(
         graph,
         y_batch=y_batch,
-        learning_rate=0.008,
+#        learning_rate=0.001, #1e-4,
+#        epsilon=1e-4,
     )
 
     with tf.Session() as sess:
         batch_idx = 0
-        writer = tf.summary.FileWriter('logs', graph=sess.graph)
-        merged = tf.summary.merge_all()
+#        writer = tf.summary.FileWriter('logs', graph=sess.graph)
+#        merged = tf.summary.merge_all()
 
         sess.run(tf.global_variables_initializer())
 
@@ -209,23 +205,23 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
             losses = []
 
             for batch in range(0, num_batches):
-                loss, _, summary = sess.run([
-                    trainable.loss_out, trainable.optimization_operation_out, merged
+                loss, _ = sess.run([
+                    trainable.loss_out, trainable.optimization_operation_out,
                 ], feed_dict={
                     graph.is_training_in: True,
                 })
-                writer.add_summary(summary, batch_idx)
+#                writer.add_summary(summary, batch_idx)
                 batch_idx = batch_idx + 1
                 losses.append(loss)
 
             if (epoch % 50 == 0)  or (epoch + 1 == num_epochs):
                 y_pred = _predict(sess, graph, x_train, train_lengths)
-                f1_train = audiolabel.util.f1_score(y_train, y_pred)
+                f1_train = audiolabel.util.f1_score(y_train, y_pred, average='weighted')
 
                 y_pred = _predict(sess, graph, x_validation, validation_lengths)
-                f1_validation = audiolabel.util.f1_score(y_validation, y_pred)
+                f1_validation = audiolabel.util.f1_score(y_validation, y_pred, average='weighted')
 
-                print 'Epoch {}: F1-score {}, {} ; loss: {}'.format(
+                print 'Epoch {}: F1-score train: {}; validation: {}; loss: {}'.format(
                     epoch,
                     f1_train,
                     f1_validation,
