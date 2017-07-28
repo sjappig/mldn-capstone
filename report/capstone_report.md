@@ -60,14 +60,6 @@ Also precision will be used, to get comparable results with [2].
 Since we are working with multilabel classification, we will average the scores using
 class weights most of the time.
 
-In [2] benchmark model is reported with "balanced mean Average Precision across
-the 485 categories of 0.314". We are using more coarse labels, so we expect better result.
-
-In [3] are results of audio scene classification with F1-score: "approach
-obtains an F1-score of 97.7%". This result is however for single label classification,
-so our score is likely to be worse.
-
-
 ## II. Analysis
 _(approx. 2-4 pages)_
 
@@ -186,6 +178,37 @@ In this section, you will need to discuss the algorithms and techniques you inte
 
 ### Benchmark
 
+In [2] benchmark model is reported with "balanced mean Average Precision across
+the 485 categories of 0.314". We are using more coarse labels, so we expect better result.
+
+In [3] are results of audio scene classification with F1-score: "approach
+obtains an F1-score of 97.7%". This result is however for single label classification,
+so our score is likely to be worse.
+
+Our zero-hypothesis and baseline model scores are illustrated in Figure X and Figure Y.
+
+
+
+zero-hypothesis: F1 score for train:
+[ 0.57224771  0.          0.          0.          0.          0.          0.        ] => 0.14836051648
+zero-hypothesis: Precision score for train:
+[ 0.40080321  0.          0.          0.          0.          0.          0.        ] => 0.103911944073
+zero-hypothesis: F1 score for validation:
+[ 0.56668311  0.          0.          0.          0.          0.          0.        ] => 0.144565442822
+zero-hypothesis: Precision score for validation:
+[ 0.39536485  0.          0.          0.          0.          0.          0.        ] => 0.100860768449
+
+baseline: F1 score for train:
+[ 0.71725082  0.1395881   0.60414478  0.34175084  0.59150152  0.34600998  0.24330672] => 0.54825728836
+baseline: Precision score for train:
+[ 0.76487757  1.          0.75059326  0.89624724  0.71170784  0.8685446 0.93165468] => 0.786451248018
+baseline: F1 score for validation:
+[ 0.58046851  0.07725322  0.43339806  0.20285261  0.42307692  0.16494845 0.10285714] => 0.391692997207
+baseline: Precision score for validation:
+[ 0.60997442  0.6         0.55192878  0.53781513  0.52333932  0.45714286 0.40909091] => 0.54163497771
+
+
+
 In this section, you will need to provide a clearly defined benchmark result or threshold for comparing across performances obtained by your solution. The reasoning behind the benchmark (in the case where it is not an established result) should be discussed. Questions to ask yourself when writing this section:
 - _Has some result or value been provided that acts as a benchmark for measuring performance?_
 - _Is it clear how this result or value was obtained (whether by data or by hypothesis)?_
@@ -205,7 +228,7 @@ _(approx. 3-5 pages)_
  * Each feature is min-max-normalized. This is done even batch normalization is used at parts of
    the model, as adding the batch normalization inside TensorFlow RNN did not seems easily doable.
  
- * Sequences are zero-padded to have equal lengths. Even though RNN is able to handle variable length
+ * Feature sequences are zero-padded to have equal lengths. Even though RNN is able to handle variable length
    sequences, the sequences used should have equal shapes and then the results are picked according to
    original lenghts.
 
@@ -219,7 +242,16 @@ In this section, all of your preprocessing steps will need to be clearly documen
 #### Getting the data
 
 Downloading the balanced subsets of the AudioSet videos and extracting the audio from them was done using
-modified version of download.sh. Modifications to original tool were:
+modified version of download-script from "set of tools for downloading and using AudioSet" [10].
+Following modifications were done to original script:
+
+ * No gzip-compression (as further processing would be slower)
+
+ * Change sample rate from 22050 Hz to 16000 Hz (to save some disk space)
+
+ * Use only one channel (to save some disk space and make further processing simpler)
+
+ * Prefix wav-files with "sample_" (some files were otherwise starting with dash, with caused problems)
 
 Downloading all the samples tookseveral days even with good quality Internet-connection. However for testing
 purposes, download-script can be canceled e.g. after few hundred samples are ready.
@@ -259,12 +291,22 @@ Since the model training time was rather long with the whole training data (depe
 parameter estimation was done with smaller subset of 1000 randomly drawn samples from training set, which was
 furthermore divided to training and validation sets of 800 and 200 samples, respectively.
 
-With this split, number of LSTM cells and number of epochs was tuned.
-There would be number of other tunable parameters as well, but the scope of this project seemed start to grow too big.
+With this split, number of LSTM cells were tuned, with pre-decided maximum of 512 (to control the training times of the model).
+In Figure X 2000 epochs were used while training the model. As can be seen from the figure, model performance seems to first 
+behave as expected and is rising as LSTM cells are added, but with 512 cells there is a drop. Next in Figure XX number of epoch
+is increased to 3000 to see if model would was simply not yet converged. However, the result is now significally worse with
+all chosen cell counts. To understand better what is happening, loss functions are plotted in Figure Y. From there we can see that
+they seem rather unstable.
 
-One problem that was encountered, had to do with stability of Adam optimization. The loss seemingly randomly started to increase
-a lot after tens of thousands iterations were run. Fortunately, this was known feature of Adam, and the TensorFlow documentation
-mentioned epsilon parameter and suggested adjustment for that.
+Since we are using Adam optimization algorithm, the learning rate should be able to adapt by itself. However, the stability of
+Adam optimization is relying on epsilon hyperparameter, which affects the numerical stability of the optimization, and is actually
+even marked in TensorFlow to have questionable default value. [11] After epsilon is adjusted from its default value of 1e-8 to 1e-4,
+spikes in loss functions are lowered and the validation curve shows that the validation score for 512 LSTM cells is the best fo far.
+
+In Figures X, Y and Z, RNN model with 512 LSTM cell is used with epsilon 1e-4. Interestingly, the unstabilities seem to disappear
+as more data is used. Also the selected model seems to be powerful enough to fully learn the training data, having clear gap between
+validation error, which *might* allow our model to generalize better when more data is added.
+
 
 
 In this section, you will need to discuss the process of improvement you made upon the algorithms and techniques you used in your implementation. For example, adjusting parameters for certain models to acquire improved solutions would fall under the refinement category. Your initial and final solutions should be reported, as well as any significant intermediate results as necessary. Questions to ask yourself when writing this section:
@@ -334,3 +376,4 @@ In this section, you will need to provide discussion as to how one aspect of the
 1. MFCC
 1. BATCH NORM
 1. ORTHOGONAL INIT
+1. https://github.com/unixpickle/audioset/
