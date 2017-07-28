@@ -1,7 +1,7 @@
 # Machine Learning Engineer Nanodegree
 ## Capstone Project
 Jari-Pekka Ryynänen
-December 31st, 2050
+December 31st, 2017
 
 ## I. Definition
 _(approx. 1-2 pages)_
@@ -12,7 +12,7 @@ This capstone project is about categorizing audio samples. Categorizing audio sa
 of giving an appropriate label to audio. In this project we are using Google AudioSet [1], which
 contains huge amount of prelabeled samples drawn from YouTube-videos. More precisly, we are using
 balanced subsets of the AudioSet, which contain approximately 22k samples for training and Xk
-samples for testing.
+samples for testing. Dataset is described in more detail in [1] and [2].
 
 As the used dataset is rather big, the resulting model has good chance to generalize well also to
 audio from other sources than YouTube. There are several application ideas for this kind of model:
@@ -24,50 +24,48 @@ audio from other sources than YouTube. There are several application ideas for t
  * triggering some actions based on the audio event (like saving only speech)
 
 
-In this section, look to provide a high-level overview of the project in layman’s terms. Questions to ask yourself when writing this section:
-- _Has an overview of the project been provided, such as the problem domain, project origin, and related datasets or input data?_
-- _Has enough background information been given so that an uninformed reader would understand the problem domain and following problem statement?_
-
 ### Problem Statement
 
 Problem to solve: Create a system that is capable of giving (possible multiple) label(s) to a short
 audio segment. More precisily, given audio sample, predict a label that describes that sample,
 where label is from predefined set. The approach will be supervised, i.e. system is trained to do
 this prediction by showing simple-label pairs. Precise predictions with coarse labels are preferred
-over imprecise with detailed labels.
+over imprecise with detailed labels. Target labels will be the top-level labels in AudioSet ontology:
+"Human sounds", "Source-ambiguous sounds", "Animal", "Sounds of things", "Music", "Natural sounds",
+"Channel, environment and background".
 
-First task is to download and store samples. The samples are segments of YouTube-videos, but as we
-are interested in the audio of those videos, the audio must be extracted from the videos.
+First task is to download and store samples. The samples are segments of YouTube videos, but as we
+are interested in the audio of those videos, the audio must be extracted.
 
 After the samples are stored locally, preprocessing can be done. Our preprocess-part will consist of
-extraction of features, min-max-normalization, label hot-encoding and padding audio samples to equal
-lengths.
+extraction of features, min-max-normalization of those features, label hot-encoding and padding
+feature vectors to equal lengths.
 
-Using output from the preprocess, zero-hypothesis, baseline and RNN model are fitted.
-Model fit is evaluated against validation set, which is randomly drawn subset of training set. Depending
-on the evaluation result, hyperparameters (and possibly features) are tuned and models are re-evaluated
-until RNN model does not seem to improve with reasonable amount of work. For this part we might use
-smaller subset of the training set to make the iterations faster.
+Using output from the preprocess, zero-hypothesis, baseline and neural network models are fitted.
+Model fit is evaluated against validation set, which is randomly drawn subset of training set. With
+this split hyperparameters are tuned and models are re-evaluated until neural network does not seem
+to improve with reasonable amount of work. For this part we might use smaller subset of the training
+set to make the iterations faster.
 
 When final model hyperparameters and features are found, full training set is used to train models,
 and full testing set is used to get final scores.
 
-In this section, you will want to clearly define the problem that you are trying to solve, including the strategy (outline of tasks) you will use to achieve the desired solution. You should also thoroughly discuss what the intended solution will be for this problem. Questions to ask yourself when writing this section:
-- _Is the problem statement clearly defined? Will the reader understand what you are expecting to solve?_
-- _Have you thoroughly discussed how you will attempt to solve the problem?_
-- _Is an anticipated solution clearly defined? Will the reader understand what results you are looking for?_
-
 ### Metrics
 
 Balanced error measure which is easy to understand, and is comparable with
-values from [2] is **F1-score**: Harmonic mean of precision and recall.
-Mathematical equation for F1 is *2\*precision\*recall/(precision+recall)*.
+values from [3] is F1-score: Harmonic mean of precision and recall.
+Mathematical equation for F1 is *2\*precision\*recall/(precision+recall)*. 
+Also precision will be used, to get comparable results with [2].
 
-F1-scores are inspected both class-wise and weighted average over classes.
+Since we are working with multilabel classification, we will average the scores using
+class weights most of the time.
 
-In this section, you will need to clearly define the metrics or calculations you will use to measure performance of a model or result in your project. These calculations and metrics should be justified based on the characteristics of the problem and problem domain. Questions to ask yourself when writing this section:
-- _Are the metrics you’ve chosen to measure the performance of your models clearly discussed and defined?_
-- _Have you provided reasonable justification for the metrics chosen based on the problem and solution?_
+In [2] benchmark model is reported with "balanced mean Average Precision across
+the 485 categories of 0.314". We are using more coarse labels, so we expect better result.
+
+In [3] are results of audio scene classification with F1-score: "approach
+obtains an F1-score of 97.7%". This result is however for single label classification,
+so our score is likely to be worse.
 
 
 ## II. Analysis
@@ -75,26 +73,27 @@ _(approx. 2-4 pages)_
 
 ### Data Exploration
 
-Training data set has below class distribution:
+The class distribution of the top-level labels in the training dataset
+is visualized in Figure 1. As we can see, there is slight imbalance between
+classes. To compensate this, we will use weighted cost function, which emphasizes
+the classes with less samples. Also imbalanced class distribution indicates that
+we might want to use stratified sampling when subsampling data.
 
-IMAGE
+![Top-level label distribution](class_dist.png)
 
-As we can see, there is slight imbalance between classes. To compensate this,
-we will use weighted cost function, which emphasizes the classes with less
-samples.
+We have 21788 samples in the training dataset and X in the testing dataset.
+In Figure 2. is an example of 10 second audio sample with top-level labels "Music" and "Human sounds".
+Sample is from YouTube video "our STOMP routine - Ground Zero Master's Commission - Shout Out Loud!" [4]
+between 30s - 40s.
 
-Samples of the data have variable lengths; however, as seen from above table,
+![Example audio sample from YouTube video ](sample_r7VBDgfPBco.png) 
+
+Samples of the data have variable lengths and as seen from above table,
 the full lengths samples dominate, and the short values seem to be more like outliers.
-However, out RNN model is able to work with variable lengths (even though the actual
+However, our neural network model will be able to work with variable lengths (even though the actual
 tensors provided as input must have fixed lengths, the model will discard the padding).
 
-TABLE
-
-
-The features seem to also have some values that are outlier according to Tukey's test, but removing them
-does not seem doable, as they are spread across different samples. However, this gives indication that
-we probably want to use some regularization when training model, as we might not be able to trust
-the data completely.
+Calculate some stats of the original dataset. !
 
 In this section, you will be expected to analyze the data you are using for the problem. This data can either be in the form of a dataset (or datasets), input data (or input files), or even an environment. The type of data should be thoroughly described and, if possible, have basic statistics and information presented (such as discussion of input features or defining characteristics about the input or environment). Any abnormalities or interesting qualities about the data that may need to be addressed have been identified (such as features that need to be transformed or the possibility of outliers). Questions to ask yourself when writing this section:
 - _If a dataset is present for this problem, have you thoroughly discussed certain features about the dataset? Has a data sample been provided to the reader?_
@@ -103,6 +102,7 @@ In this section, you will be expected to analyze the data you are using for the 
 - _Are there any abnormalities or characteristics about the input space or dataset that need to be addressed? (categorical variables, missing values, outliers, etc.)_
 
 ### Exploratory Visualization
+MERGE WITH ABOVE
 In this section, you will need to provide some form of visualization that summarizes or extracts a relevant characteristic or feature about the data. The visualization should adequately support the data being used. Discuss why this visualization was chosen and how it is relevant. Questions to ask yourself when writing this section:
 - _Have you visualized a relevant characteristic or feature about the dataset or input data?_
 - _Is the visualization thoroughly analyzed and discussed?_
@@ -125,7 +125,7 @@ These models will use the same features as the final model.
 #### Mel-Frequency Cepstral Coefficients
 
 Mel-Frequency Cepstral Coefficients (MFCC) are a way to present spectral information
-of audio. They are usually calculated using short overlapping frames of audio.
+of audio. They are usually calculated using short overlapping frames of audio. [5]
 
 Normal cepstral coefficients present the change in the spectrum; by picking the first few
 cepstral coefficient we are able to capture the envelope of the spectrum. With MFCC, we
@@ -140,37 +140,35 @@ the audio samples.
 #### Recurrent Neural Network
 
 Recurrent Neural Networks (RNN) are neural networks that use their output from the previous time step
-t-1 when calculating output for the timestep t. Also the errors are propagated through timesteps backwards.
-The chain rule that is used in all neural networks applies also here.
+*t-1* when calculating output for the timestep *t*. Also the errors are propagated through timesteps backwards.
+The chain rule that is used in all neural networks applies also here. [6]
  
-Long Short-Term Memory (LSTM) units are building blocks for RNN that are able to learn over many time steps.
+Long Short-Term Memory (LSTM) units are building blocks for RNN that are able to learn over many time steps [7].
 LSTM responds to vanishing/exploding gradient problems which may occur in long sequences by provding the
 previous "internal state" of the unit as is to next timestep, and gating that state, input and output by 
 "fuzzy" gates (i.e. if traditional logic gates can be seen as multiplication of 0 or 1, these gates multiply
 using value which is [0, 1]).
 
 By using RNN, we are able to capture temporal information of audio samples. With LSTM, our model can learn
-dependencies which span over whole sequence (which are mostly 199 feature vectors long).
+dependencies which span over whole sequence, even if the sequence is long.
 
 #### Dropout, batch normalization and weight initialization
 
 Dropout is a regularization technique to neural networks. It sets randomly outputs of the 
 previous layer to zero with some given probability. This counters directly against overfitting, as
-the model discards data randomly and is this way pushed to learn latent variables.
+the model discards data randomly and is this way pushed to learn latent variables. REMOVE?
 
 Batch normalization is method which helps relaxing tuning required for weights and learning rate
-(it is also reported to have other many other benefits). It tries to normalize its input to have mean of 0
-and variance of 1.
+(it is also reported to have other many other benefits, including regularization effect) [8]. It tries
+to normalize its input to have mean of 0 and variance of 1.
 
 For weight initializing orthogonal initializer is used. It has been reported to have
 positive effect on controlling vanishing/exploding gradients and in some cases also
-making the models to converge faster.
+making the models to converge faster. [9]
 
 #### Optimizer and learning rate
 
-Adam optimization algorithm, which is used in this project, is an optimizer that adapts the learning rate by itself.
-However, the optimizer is provided with maximum learning rate. This maximum value will be decayed, to make the
-model stabilize as iterations proceed.
+Adam optimization algorithm, which is used in this project, is an optimizer that adapts the learning rate by itself. It will be used with its default values in TensorFlow.
 
 #### Multi-label output and label weights
 
@@ -178,8 +176,8 @@ Since the output for our models can have multiple labels, we will be using sigmo
 node independently, and interpret the result as probability of corresponding class being present.
 If the probability is over 1/2, our final prediction is that the class is present, and vice versa.
 
-Label weights that are used to counter imbalanced distribution of classes are calcuated using class frequenciesi
-in full training set.
+Label weights that are used to counter imbalanced distribution of classes are calcuated using class frequencies
+of full training set.
 
 In this section, you will need to discuss the algorithms and techniques you intend to use for solving the problem. You should justify the use of each one based on the characteristics of the problem and the problem domain. Questions to ask yourself when writing this section:
 - _Are the algorithms you will use, including any default variables/parameters in the project clearly defined?_
@@ -187,6 +185,7 @@ In this section, you will need to discuss the algorithms and techniques you inte
 - _Is it made clear how the input data or datasets will be handled by the algorithms and techniques chosen?_
 
 ### Benchmark
+
 In this section, you will need to provide a clearly defined benchmark result or threshold for comparing across performances obtained by your solution. The reasoning behind the benchmark (in the case where it is not an established result) should be discussed. Questions to ask yourself when writing this section:
 - _Has some result or value been provided that acts as a benchmark for measuring performance?_
 - _Is it clear how this result or value was obtained (whether by data or by hypothesis)?_
@@ -241,6 +240,10 @@ with one vs. many -ensemble classifier to create classifiers able to do multilab
 RNN implementation was done with TensorFlow. Below is the network graph.
 
 
+Providing input for graph using feed_dict -mechanism during training proved to be very slow.
+Instead, whole training set was converted to tensor and fed to graph using tf.train.batch.
+When testing the model, feed_dict was used for simplicity.
+
 #### Environment
 
 Both personal computer and FloydHub were used.
@@ -256,7 +259,7 @@ Since the model training time was rather long with the whole training data (depe
 parameter estimation was done with smaller subset of 1000 randomly drawn samples from training set, which was
 furthermore divided to training and validation sets of 800 and 200 samples, respectively.
 
-With this split, number of LSTM cells used was tuned and the affect of batch normalization was tested.
+With this split, number of LSTM cells and number of epochs was tuned.
 There would be number of other tunable parameters as well, but the scope of this project seemed start to grow too big.
 
 One problem that was encountered, had to do with stability of Adam optimization. The loss seemingly randomly started to increase
@@ -320,3 +323,14 @@ In this section, you will need to provide discussion as to how one aspect of the
 - Are all the resources used for this project correctly cited and referenced?
 - Is the code that implements your solution easily readable and properly commented?
 - Does the code execute without error and produce results similar to those reported?
+
+
+1. AudioSet: A large-scale dataset of manually annotated audio events https://research.google.com/audioset/dataset/index.html
+1. Gemmeke, J. et al: Audio Set: An ontology and human-labeled dataset for audio events, 2017 https://research.google.com/pubs/pub45857.html
+1. Phan, H. et al.: Audio Scene Classification with Deep Recurrent Neural Networks, 2017 https://arxiv.org/pdf/1703.04770.pdf
+1. https://www.youtube.com/watch?v=r7VBDgfPBco
+1. MFCC
+1. RNN 
+1. MFCC
+1. BATCH NORM
+1. ORTHOGONAL INIT
