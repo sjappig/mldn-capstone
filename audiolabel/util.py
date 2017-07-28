@@ -17,6 +17,13 @@ def f1_score(y_true, y_pred, average=None):
     )
 
 
+def precision_score(y_true, y_pred, average=None):
+    return sklearn.metrics.precision_score(
+        y_true,
+        y_pred,
+        average=average,
+    )
+
 def read_data(filepath):
     return pd.read_hdf(filepath, 'data')
 

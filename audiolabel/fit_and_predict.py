@@ -59,6 +59,11 @@ if __name__ == '__main__':
 
     datasets = read_and_split_datasets(args.hdf_store, dataset_size=args.N)
 
+    scorers = (
+        ('F1', audiolabel.util.f1_score),
+        ('Precision', audiolabel.util.precision_score),
+    )
+
     for classifier_type in classifier_types:
 
         if classifier_type.name == args.skip:
@@ -73,13 +78,17 @@ if __name__ == '__main__':
         for dataset in datasets:
             y_pred = classifier.predict(dataset.x)
 
-            score = audiolabel.util.f1_score(dataset.y, y_pred)
+            for name, scorer in scorers:
+                score = scorer(dataset.y, y_pred)
+                weighted_score = scorer(dataset.y, y_pred, 'weighted')
 
-            print '{}: F1-score for {}: {}'.format(
-                classifier_type.name,
-                dataset.name,
-                score,
-            )
+                print '{}: {} score for {}: {} => {}'.format(
+                    classifier_type.name,
+                    name,
+                    dataset.name,
+                    score,
+                    weighted_score,
+                )
 
     x = datasets[0].x
     y = datasets[0].y
