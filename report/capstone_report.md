@@ -68,24 +68,25 @@ _(approx. 2-4 pages)_
 The class distribution of the top-level labels in the training dataset
 is visualized in Figure 1. As we can see, there is slight imbalance between
 classes. To compensate this, we will use weighted cost function, which emphasizes
-the classes with less samples. Also imbalanced class distribution indicates that
+the classes with less samples. Imbalanced class distribution indicates also that
 we might want to use stratified sampling when subsampling data.
 
-![Top-level label distribution](class_dist.png)
+![Top-level label distribution of training dataset](class_dist.png)
 
-We have 21788 samples in the training dataset and X in the testing dataset.
+We have 21788 samples in the training dataset and X in the testing dataset (these numbers do not match the
+ones given in [1], since some of the videos are not available anymore).
+
 In Figure 2. is an example of 10 second audio sample with top-level labels "Music" and "Human sounds".
 Sample is from YouTube video "our STOMP routine - Ground Zero Master's Commission - Shout Out Loud!" [4]
-between 30s - 40s.
+between 30s - 40s. Same figure illustrates point-wise maximum, mean and minimum values calculated over
+all training samples.
 
-![Example audio sample from YouTube video ](sample_r7VBDgfPBco.png) 
+![Example audio sample and basic statistics from training dataset](sample_r7VBDgfPBco_and_stats.png) 
 
 Samples of the data have variable lengths and as seen from above table,
 the full lengths samples dominate, and the short values seem to be more like outliers.
 However, our neural network model will be able to work with variable lengths (even though the actual
 tensors provided as input must have fixed lengths, the model will discard the padding).
-
-Calculate some stats of the original dataset. !
 
 In this section, you will be expected to analyze the data you are using for the problem. This data can either be in the form of a dataset (or datasets), input data (or input files), or even an environment. The type of data should be thoroughly described and, if possible, have basic statistics and information presented (such as discussion of input features or defining characteristics about the input or environment). Any abnormalities or interesting qualities about the data that may need to be addressed have been identified (such as features that need to be transformed or the possibility of outliers). Questions to ask yourself when writing this section:
 - _If a dataset is present for this problem, have you thoroughly discussed certain features about the dataset? Has a data sample been provided to the reader?_
@@ -157,10 +158,6 @@ to normalize its input to have mean of 0 and variance of 1.
 For weight initializing orthogonal initializer is used. It has been reported to have
 positive effect on controlling vanishing/exploding gradients and in some cases also
 making the models to converge faster. [9]
-
-#### Optimizer and learning rate
-
-Adam optimization algorithm, which is used in this project, is an optimizer that adapts the learning rate by itself. It will be used with its default values in TensorFlow.
 
 #### Multi-label output and label weights
 
@@ -259,7 +256,7 @@ purposes, download-script can be canceled e.g. after few hundred samples are rea
 #### Preprocessing
 
 For preprocessing, numpy, pandas and library python_speech_features were used. Preprocess step is runnable as
-separate Python-script, and creates storage single file with the preprocessed data. This file is fed to
+separate Python-script, and creates single storage file with the preprocessed data. This file is fed to
 script doing the model fitting and predictions.
 
 #### Baseline models
@@ -294,18 +291,18 @@ furthermore divided to training and validation sets of 800 and 200 samples, resp
 With this split, number of LSTM cells were tuned, with pre-decided maximum of 512 (to control the training times of the model).
 In Figure X 2000 epochs were used while training the model. As can be seen from the figure, model performance seems to first 
 behave as expected and is rising as LSTM cells are added, but with 512 cells there is a drop. Next in Figure XX number of epoch
-is increased to 3000 to see if model would was simply not yet converged. However, the result is now significally worse with
-all chosen cell counts. To understand better what is happening, loss functions are plotted in Figure Y. From there we can see that
+is increased to 3000 to see if the model was simply not yet converged. However, the result is now significally worse with
+all measurement points. To understand better what is happening, loss functions are plotted in Figure Y. From there we can see that
 they seem rather unstable.
 
 Since we are using Adam optimization algorithm, the learning rate should be able to adapt by itself. However, the stability of
 Adam optimization is relying on epsilon hyperparameter, which affects the numerical stability of the optimization, and is actually
-even marked in TensorFlow to have questionable default value. [11] After epsilon is adjusted from its default value of 1e-8 to 1e-4,
-spikes in loss functions are lowered and the validation curve shows that the validation score for 512 LSTM cells is the best fo far.
+marked in TensorFlow documentation to have questionable default value. [11] After epsilon is adjusted from its default value of 1e-8 to 1e-4,
+spikes in loss functions are lowered and the validation curve shows that the validation score for 512 LSTM cells is the best so far.
 
 In Figures X, Y and Z, RNN model with 512 LSTM cell is used with epsilon 1e-4. Interestingly, the unstabilities seem to disappear
 as more data is used. Also the selected model seems to be powerful enough to fully learn the training data, having clear gap between
-validation error, which *might* allow our model to generalize better when more data is added.
+training and validation error, which *might* allow our model to generalize better when more data is added.
 
 
 
@@ -377,3 +374,4 @@ In this section, you will need to provide discussion as to how one aspect of the
 1. BATCH NORM
 1. ORTHOGONAL INIT
 1. https://github.com/unixpickle/audioset/
+1. Tensorflow adamoptimizer epsilon
