@@ -83,23 +83,7 @@ all training samples.
 
 ![Example audio sample and basic statistics from training dataset](sample_r7VBDgfPBco_and_stats.png) 
 
-Samples of the data have variable lengths and as seen from above table,
-the full lengths samples dominate, and the short values seem to be more like outliers.
-However, our neural network model will be able to work with variable lengths (even though the actual
-tensors provided as input must have fixed lengths, the model will discard the padding).
-
-In this section, you will be expected to analyze the data you are using for the problem. This data can either be in the form of a dataset (or datasets), input data (or input files), or even an environment. The type of data should be thoroughly described and, if possible, have basic statistics and information presented (such as discussion of input features or defining characteristics about the input or environment). Any abnormalities or interesting qualities about the data that may need to be addressed have been identified (such as features that need to be transformed or the possibility of outliers). Questions to ask yourself when writing this section:
-- _If a dataset is present for this problem, have you thoroughly discussed certain features about the dataset? Has a data sample been provided to the reader?_
-- _If a dataset is present for this problem, are statistics about the dataset calculated and reported? Have any relevant results from this calculation been discussed?_
-- _If a dataset is **not** present for this problem, has discussion been made about the input space or input data for your problem?_
-- _Are there any abnormalities or characteristics about the input space or dataset that need to be addressed? (categorical variables, missing values, outliers, etc.)_
-
-### Exploratory Visualization
-MERGE WITH ABOVE
-In this section, you will need to provide some form of visualization that summarizes or extracts a relevant characteristic or feature about the data. The visualization should adequately support the data being used. Discuss why this visualization was chosen and how it is relevant. Questions to ask yourself when writing this section:
-- _Have you visualized a relevant characteristic or feature about the dataset or input data?_
-- _Is the visualization thoroughly analyzed and discussed?_
-- _If a plot is provided, are the axes, title, and datum clearly defined?_
+From Figure 2. we can see that there is no offset and the 16 bit sample space is used effectively for each sample.
 
 ### Algorithms and Techniques
 
@@ -273,10 +257,6 @@ Providing input for graph using feed_dict -mechanism during training proved to b
 Instead, whole training set was converted to tensor and fed to graph using tf.train.batch.
 When testing the model, feed_dict was used for simplicity.
 
-#### Environment
-
-Both personal computer and FloydHub were used.
- 
 In this section, the process for which metrics, algorithms, and techniques that you implemented for the given data will need to be clearly documented. It should be abundantly clear how the implementation was carried out, and discussion should be made regarding any complications that occurred during this process. Questions to ask yourself when writing this section:
 - _Is it made clear how the algorithms and techniques were implemented with the given datasets or input data?_
 - _Were there any complications with the original metrics or techniques that required changing prior to acquiring a solution?_
@@ -284,13 +264,15 @@ In this section, the process for which metrics, algorithms, and techniques that 
 
 ### Refinement
 
-Since the model training time was rather long with the whole training data (depending on the model complexity, from one day to several days)
+Since the model training time was rather long with the whole training data (depending on the model complexity, up to several days)
 parameter estimation was done with smaller subset of 1000 randomly drawn samples from training set, which was
 furthermore divided to training and validation sets of 800 and 200 samples, respectively.
 
-With this split, number of LSTM cells were tuned, with pre-decided maximum of 512 (to control the training times of the model).
+With this split, number of LSTM units were tuned, with pre-decided maximum of 512 (to control the training times of the model), while
+measuring weighted mean F1 score.
+
 In Figure X 2000 epochs were used while training the model. As can be seen from the figure, model performance seems to first 
-behave as expected and is rising as LSTM cells are added, but with 512 cells there is a drop. Next in Figure XX number of epoch
+behave as expected and is rising as LSTM units are added, but with 512 units there is a drop. Next in Figure XX number of epoch
 is increased to 3000 to see if the model was simply not yet converged. However, the result is now significally worse with
 all measurement points. To understand better what is happening, loss functions are plotted in Figure Y. From there we can see that
 they seem rather unstable.
@@ -298,12 +280,29 @@ they seem rather unstable.
 Since we are using Adam optimization algorithm, the learning rate should be able to adapt by itself. However, the stability of
 Adam optimization is relying on epsilon hyperparameter, which affects the numerical stability of the optimization, and is actually
 marked in TensorFlow documentation to have questionable default value. [11] After epsilon is adjusted from its default value of 1e-8 to 1e-4,
-spikes in loss functions are lowered and the validation curve shows that the validation score for 512 LSTM cells is the best so far.
+spikes in loss functions are lowered and the validation curve shows that the validation score for 512 LSTM units is the best so far.
 
-In Figures X, Y and Z, RNN model with 512 LSTM cell is used with epsilon 1e-4. Interestingly, the unstabilities seem to disappear
-as more data is used. Also the selected model seems to be powerful enough to fully learn the training data, having clear gap between
+In Figures X, Y and Z, RNN model with 512 LSTM units is used with epsilon 1e-4. Split to training and validation sets is done using the
+same 80-20 division as with 1000 samples. Interestingly, the unstabilities seem to disappear as more data is used.
+Also the selected model seems to be powerful enough to fully learn the training data, having clear gap between
 training and validation error, which *might* allow our model to generalize better when more data is added.
 
+In Figure X the whole training dataset is in use. The result clearly outperforms our own baseline models, and the model
+is decided to be good enough to be our final model.
+
+![Validation curve for LSTM unit count using 2000 epochs](validation_curve_lstm_units_2000_epochs.png)
+
+![Validation curve for LSTM unit count using 3000 epochs](validation_curve_lstm_units_3000_epochs.png)
+
+![Loss function with default optimizer epsilon](cost_default_epsilon.png)
+
+![Loss function with optimizer epsilon 1e-4](cost_dropped_epsilon.png)
+
+![Validation curve for LSTM unit count using 3000 epochs and optimizer epsilon 1e-4](validation_curve_lstm_units_3000_epochs_epsilon_dropped.png)
+
+![Validation curve for epoch count using 1000 samples](validation_curve_epochs_1000_samples.png)
+
+![Validation curve for epoch count using 4000 samples](validation_curve_epochs_4000_samples.png)
 
 
 In this section, you will need to discuss the process of improvement you made upon the algorithms and techniques you used in your implementation. For example, adjusting parameters for certain models to acquire improved solutions would fall under the refinement category. Your initial and final solutions should be reported, as well as any significant intermediate results as necessary. Questions to ask yourself when writing this section:
