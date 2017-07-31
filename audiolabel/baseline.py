@@ -5,8 +5,11 @@ import sklearn.multiclass
 import sklearn.preprocessing
 import sklearn.pipeline
 
+import audiolabel.util
 
-def create(x_train, y_train):
+
+def create(x_train, y_train, **_):
+
     def flatten(samples):
         return np.array([
             sample.flatten('F')
@@ -28,4 +31,6 @@ def create(x_train, y_train):
         ('classifier', classifier),
     ])
 
-    return pipeline.fit(x_train, y_train)
+    predictor = pipeline.fit(x_train, y_train)
+
+    return audiolabel.util.Predictor(predictor.predict)

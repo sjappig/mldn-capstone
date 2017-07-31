@@ -46,11 +46,18 @@ if __name__ == '__main__':
         help='# of samples to use',
         type=int,
     )
+    parser.add_argument(
+        '--epochs',
+        help='# of epochs to train RNN',
+        type=int,
+        required=True,
+    )
     args = parser.parse_args()
 
     classifier_types = (
         ClassifierType('zero-hypothesis', audiolabel.zero_hypothesis.create),
         ClassifierType('baseline', audiolabel.baseline.create),
+        ClassifierType('RNN', audiolabel.rnn.create),
     )
 
     if args.skip is not None:
@@ -73,10 +80,22 @@ if __name__ == '__main__':
         print 'Creating {} classifier...'.format(classifier_type.name)
 
         # First dataset is used as the training set
-        classifier = classifier_type.create(datasets[0].x, datasets[0].y)
+        classifier = classifier_type.create(
+            datasets[0].x,
+            datasets[0].y,
+            # Below keyword arguments affect only RNN
+            train_lengths=datasets[0].nonpadded_lengths,
+            x_validation=datasets[1].x,
+            y_validation=datasets[1].y,
+            validation_lengths=datasets[1].nonpadded_lengths,
+            num_epochs=args.epochs,
+        )
 
         for dataset in datasets:
-            y_pred = classifier.predict(dataset.x)
+            y_pred = classifier.predict(
+                dataset.x,
+                nonpadded_lengths=dataset.nonpadded_lengths,
+            )
 
             for name, scorer in scorers:
                 score = scorer(dataset.y, y_pred)
@@ -90,8 +109,3 @@ if __name__ == '__main__':
                     weighted_score,
                 )
 
-    x = datasets[0].x
-    y = datasets[0].y
-    lengths = datasets[0].nonpadded_lengths
-
-    audiolabel.rnn.train_graph(x, y, lengths, datasets[1].x, datasets[1].y, datasets[1].nonpadded_lengths)

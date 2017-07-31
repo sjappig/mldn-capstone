@@ -5,9 +5,9 @@ import sklearn.pipeline
 import sklearn.preprocessing
 
 import audiolabel.preprocess
+import audiolabel.util
 
-
-def create(x_train, y_train):
+def create(x_train, y_train, **_):
 
     transform = sklearn.preprocessing.FunctionTransformer(
         lambda X: np.zeros((len(X), 1)),
@@ -24,4 +24,6 @@ def create(x_train, y_train):
         ('classifier', classifier),
     ])
 
-    return pipeline.fit(x_train, y_train)
+    predictor = pipeline.fit(x_train, y_train)
+
+    return audiolabel.util.Predictor(predictor.predict)

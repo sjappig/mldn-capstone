@@ -75,3 +75,13 @@ def batches(*datasets, **kwargs):
             for dataset in datasets
 		)
 
+class Predictor(object):
+    def __init__(self, predict, use_only_x=True):
+        self._predict = predict
+        self._use_only_x = use_only_x
+
+    def predict(self, x, **kwargs):
+        if self._use_only_x:
+            return self._predict(x)
+
+        return self._predict(x, **kwargs)

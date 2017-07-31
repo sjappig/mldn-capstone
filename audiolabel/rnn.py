@@ -43,9 +43,6 @@ def _rnn_layers(x, nonpadded_lengths, num_units):
         dtype=tf.float32
     )
 
-#    for idx in range(0, len(cell.weights)):
-#        _summary('rnn_weights_{}'.format(idx), cell.weights[idx])
-
     # Pick the last output without padded values
     output_indices = tf.stack([
         tf.range(tf.shape(x)[0]),
@@ -56,9 +53,6 @@ def _rnn_layers(x, nonpadded_lengths, num_units):
 
     return output
 
-
-def _dropout_layer(x):
-    return tf.layers.dropout(inputs=x, rate=0.25)
 
 def _output_layer(x, num_outputs, is_training):
     W_output = tf.get_variable(
@@ -97,11 +91,9 @@ def _graph(x_batch, len_batch, num_classes, num_features, padded_length, rnn_num
 
     rnn_output = _rnn_layers(x, nonpadded_lengths, rnn_num_units)
 
-#    dropout_output = _dropout_layer(rnn_output)
-
     logits = _output_layer(rnn_output, num_classes, is_training_in)
 
-    predictor = tf.round(tf.nn.sigmoid(logits))
+    predictor = tf.round(tf.nn.sigmoid(logits), name='y_pred')
 
     return _Graph(x_in, nonpadded_lengths_in, logits, predictor, is_training_in)
 
@@ -127,8 +119,6 @@ def _trainable(graph, y_batch, **optimizer_args):
         logits=graph.logits_out,
     )
 
-#    tf.summary.scalar('loss', loss)
-
     optimization_operation = tf.train.AdamOptimizer(
         **optimizer_args
     ).minimize(loss)
@@ -151,7 +141,7 @@ def _predict(sess, graph, x, lengths):
     return np.concatenate(y_batches)
 
 
-def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, validation_lengths, batch_size=256, num_epochs=3000):
+def _train_graph(x_train, y_train, train_lengths, num_epochs, batch_size=256, x_validation=None, y_validation=None, validation_lengths=None):
     num_classes = len(y_train[0])
     num_features = len(x_train[0][0])
     padded_length = len(x_train[0])
@@ -187,15 +177,10 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
     trainable = _trainable(
         graph,
         y_batch=y_batch,
-#        learning_rate=0.001, #1e-4,
-#        epsilon=1e-4,
+        epsilon=1e-4,
     )
 
     with tf.Session() as sess:
-        batch_idx = 0
-#        writer = tf.summary.FileWriter('logs', graph=sess.graph)
-#        merged = tf.summary.merge_all()
-
         sess.run(tf.global_variables_initializer())
 
         coord = tf.train.Coordinator()
@@ -210,16 +195,18 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
                 ], feed_dict={
                     graph.is_training_in: True,
                 })
-#                writer.add_summary(summary, batch_idx)
-                batch_idx = batch_idx + 1
                 losses.append(loss)
 
-            if (epoch % 50 == 0)  or (epoch + 1 == num_epochs):
+            if (epoch % 50 == 0) or (epoch + 1 == num_epochs):
                 y_pred = _predict(sess, graph, x_train, train_lengths)
                 f1_train = audiolabel.util.f1_score(y_train, y_pred, average='weighted')
 
-                y_pred = _predict(sess, graph, x_validation, validation_lengths)
-                f1_validation = audiolabel.util.f1_score(y_validation, y_pred, average='weighted')
+                if x_validation is not None:
+                    y_pred = _predict(sess, graph, x_validation, validation_lengths)
+                    f1_validation = audiolabel.util.f1_score(y_validation, y_pred, average='weighted')
+
+                else:
+                    f1_validation = 'N/A'
 
                 print 'Epoch {}: F1-score train: {}; validation: {}; loss: {}'.format(
                     epoch,
@@ -230,3 +217,26 @@ def train_graph(x_train, y_train, train_lengths, x_validation, y_validation, val
 
         coord.request_stop()
         coord.join(threads)
+
+        saver = tf.train.Saver()
+        saver.save(sess, 'RNN.ckpt')
+
+    def wrapped_predict(x, nonpadded_lengths):
+        with tf.Session() as sess:
+            saver.restore(sess, 'RNN.ckpt')
+
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(coord=coord)
+
+            y_pred = _predict(sess, graph, x, nonpadded_lengths)
+
+            coord.request_stop()
+            coord.join(threads)
+
+        return y_pred
+
+    return audiolabel.util.Predictor(wrapped_predict, use_only_x=False)
+
+
+def create(x_train, y_train, **kwargs):
+    return _train_graph(x_train, y_train, **kwargs)
