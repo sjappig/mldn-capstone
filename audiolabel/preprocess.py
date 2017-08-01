@@ -70,7 +70,7 @@ def pad_samples(dataframe):
     return dataframe
 
 
-def calculate_and_store_features(filepath, max_samples=None):
+def calculate_and_store_features(filepath, max_samples, csv_filepath, audio_directory, norm_stats=None):
     hdf_dir = os.path.dirname(filepath)
 
     if not os.path.isdir(hdf_dir):
@@ -80,17 +80,20 @@ def calculate_and_store_features(filepath, max_samples=None):
 
     store = pd.HDFStore(filepath)
 
-    stats_collector = audiolabel.stats.StatisticsCollector(ONTOLOGY)
+    stats_collector = audiolabel.stats.StatisticsCollector.from_ontology(ONTOLOGY)
 
-    generator = _generate_data(stats_collector, max_samples)
+    generator = _generate_data(stats_collector, max_samples, csv_filepath, audio_directory)
 
     print 'Creating and populating dataframe...'
     dataframe = pd.DataFrame(generator, columns=('samples', 'nonpadded_length', 'labels_ohe'))
 
+    minimum = norm_stats.minimum if norm_stats is not None else stats_collector.minimum
+    maximum = norm_stats.maximum if norm_stats is not None else stats_collector.maximum
+
     dataframe.samples = min_max_normalize(
         dataframe.samples,
-        stats_collector.minimum,
-        stats_collector.maximum,
+        minimum,
+        maximum,
     )
 
     dataframe = pad_samples(dataframe)
@@ -106,10 +109,10 @@ def calculate_and_store_features(filepath, max_samples=None):
     store.close()
 
 
-def _generate_data(stats_collector, max_samples=None):
+def _generate_data(stats_collector, max_samples, csv_filepath, audio_directory):
     audio_generator = audiolabel.audio.generate_all(
-        'dataset/audioset/balanced_train_segments.csv',
-        'dataset/audioset/train',
+        csv_filepath, # 'dataset/audioset/balanced_train_segments.csv',
+        audio_directory, # 'dataset/audioset/train',
     )
 
     for labels, data, samplerate in audio_generator:
@@ -135,11 +138,31 @@ if __name__ == '__main__':
         help='Filepath to HDF store. If store already exists, it will be overwritten.',
     )
     parser.add_argument(
+        'csv_file',
+        help='Filepath to CSV file with sample data.',
+    )
+    parser.add_argument(
+        'audio_dir',
+        help='Path to directory with wav-files',
+    )
+    parser.add_argument(
         '--max-samples',
         metavar='N',
         type=int,
         help='Maximum number of samples to process',
     )
+    parser.add_argument(
+        '--normalize-using',
+        metavar='some_hdf_store',
+        help='Use statistics from this HDF store when normalizing features.',
+    )
     args = parser.parse_args()
-    calculate_and_store_features(args.hdf_store, args.max_samples)
+
+    norm_stats = (
+        audiolabel.stats.StatisticsCollector.from_hdf(pd.HDFStore(args.normalize_using, mode='r'))
+        if args.normalize_using is not None
+        else None
+    )
+
+    calculate_and_store_features(args.hdf_store, args.max_samples, args.csv_file, args.audio_dir, norm_stats)
 
