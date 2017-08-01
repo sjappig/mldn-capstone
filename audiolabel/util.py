@@ -28,7 +28,7 @@ def read_data(filepath):
     return pd.read_hdf(filepath, 'data')
 
 
-def read_dataset(filepath, dataset_size):
+def read_dataset(filepath, dataset_size=None):
     data = read_data(filepath)
 
     return dataframe_to_dataset(data, dataset_size)

@@ -2,6 +2,7 @@ import argparse
 import collections
 
 import sklearn.model_selection
+import numpy as np
 
 import audiolabel.baseline
 import audiolabel.rnn
@@ -12,23 +13,29 @@ import audiolabel.zero_hypothesis
 ClassifierType = collections.namedtuple('ClassifierType', ('name', 'create'))
 
 
-def read_and_split_datasets(filepath, dataset_size, test_size=0.2):
+def read_and_split_datasets(filepath, dataset_size=None, validation_size=0.2):
     dataset = audiolabel.util.read_dataset(filepath, dataset_size)
 
-    x_train, x_validation, y_train, y_validation, lengths_train, lengths_validation = (
-        sklearn.model_selection.train_test_split(
-            dataset.x,
-            dataset.y,
-            dataset.nonpadded_lengths,
-            test_size=test_size,
-            stratify=dataset.y,
+    if validation_size > 0:
+        x_train, x_validation, y_train, y_validation, lengths_train, lengths_validation = (
+            sklearn.model_selection.train_test_split(
+                dataset.x,
+                dataset.y,
+                dataset.nonpadded_lengths,
+                test_size=validation_size,
+                stratify=dataset.y,
+            )
         )
-    )
 
-    return (
-        audiolabel.util.Dataset('train', x_train, y_train, lengths_train),
-        audiolabel.util.Dataset('validation', x_validation, y_validation, lengths_validation),
-    )
+        return (
+            audiolabel.util.Dataset('train', x_train, y_train, lengths_train),
+            audiolabel.util.Dataset('validation', x_validation, y_validation, lengths_validation),
+        )
+
+    else:
+        return (
+            audiolabel.util.Dataset('train', dataset.x, dataset.y, dataset.nonpadded_lengths),
+        )
 
 
 if __name__ == '__main__':
@@ -52,6 +59,17 @@ if __name__ == '__main__':
         type=int,
         required=True,
     )
+    parser.add_argument(
+        '--validation-size',
+        type=float,
+        help='Size of validation set drawn from the training dataset [0,1]',
+        required=True,
+    )
+    parser.add_argument(
+        '--test',
+        metavar='test_hdf_store',
+        help='Filepath to HDF store with preprocessed test data',
+    )
     args = parser.parse_args()
 
     classifier_types = (
@@ -64,7 +82,17 @@ if __name__ == '__main__':
         if not any(args.skip == clf_type.name for clf_type in classifier_types):
             print 'Unkown classifier to skip: {}'.format(args.skip)
 
-    datasets = read_and_split_datasets(args.hdf_store, dataset_size=args.N)
+    datasets = read_and_split_datasets(
+        args.hdf_store,
+        dataset_size=args.N,
+        validation_size=args.validation_size,
+    )
+
+    if args.test is not None:
+        test_dataset = audiolabel.util.read_dataset(args.test)
+        datasets += (
+            audiolabel.util.Dataset('test', test_dataset.x, test_dataset.y, test_dataset.nonpadded_lengths),
+        )
 
     scorers = (
         ('F1', audiolabel.util.f1_score),
@@ -79,16 +107,21 @@ if __name__ == '__main__':
 
         print 'Creating {} classifier...'.format(classifier_type.name)
 
+        extra_args = {}
+
+        if datasets[1].name == 'validation':
+            extra_args['x_validation'] = datasets[1].x
+            extra_args['y_validation'] = datasets[1].y
+            extra_args['validation_lengths'] = datasets[1].nonpadded_lengths
+
         # First dataset is used as the training set
         classifier = classifier_type.create(
             datasets[0].x,
             datasets[0].y,
             # Below keyword arguments affect only RNN
             train_lengths=datasets[0].nonpadded_lengths,
-            x_validation=datasets[1].x,
-            y_validation=datasets[1].y,
-            validation_lengths=datasets[1].nonpadded_lengths,
             num_epochs=args.epochs,
+            **extra_args
         )
 
         for dataset in datasets:
