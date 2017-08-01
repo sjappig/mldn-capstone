@@ -11,7 +11,7 @@ _(approx. 1-2 pages)_
 This capstone project is about categorizing audio samples. Categorizing audio samples is a process
 of giving an appropriate label to audio. In this project we are using Google AudioSet [1], which
 contains huge amount of prelabeled samples drawn from YouTube-videos. More precisly, we are using
-balanced subsets of the AudioSet, which contain approximately 22k samples for training and Xk
+balanced subsets of the AudioSet, which contain approximately 22k samples for training and 20k
 samples for testing. Dataset is described in more detail in [1] and [2].
 
 As the used dataset is rather big, the resulting model has good chance to generalize well also to
@@ -73,7 +73,7 @@ we might want to use stratified sampling when subsampling data.
 
 ![Top-level label distribution of training dataset](class_dist.png)
 
-We have 21788 samples in the training dataset and X in the testing dataset (these numbers do not match the
+We have 21788 samples in the training dataset and 19979 in the testing dataset (these numbers do not match the
 ones given in [1], since some of the videos are not available anymore).
 
 In Figure 2. is an example of 10 second audio sample with top-level labels "Music" and "Human sounds".
@@ -149,13 +149,8 @@ Since the output for our models can have multiple labels, we will be using sigmo
 node independently, and interpret the result as probability of corresponding class being present.
 If the probability is over 1/2, our final prediction is that the class is present, and vice versa.
 
-Label weights that are used to counter imbalanced distribution of classes are calcuated using class frequencies
+Label weights that are used to counter imbalanced distribution of classes are calculated using class frequencies
 of full training set.
-
-In this section, you will need to discuss the algorithms and techniques you intend to use for solving the problem. You should justify the use of each one based on the characteristics of the problem and the problem domain. Questions to ask yourself when writing this section:
-- _Are the algorithms you will use, including any default variables/parameters in the project clearly defined?_
-- _Are the techniques to be used thoroughly discussed and justified?_
-- _Is it made clear how the input data or datasets will be handled by the algorithms and techniques chosen?_
 
 ### Benchmark
 
@@ -166,29 +161,13 @@ In [3] are results of audio scene classification with F1-score: "approach
 obtains an F1-score of 97.7%". This result is however for single label classification,
 so our score is likely to be worse.
 
-Our zero-hypothesis and baseline model scores are illustrated in Figure X and Figure Y.
+Our zero-hypothesis and baseline model F1 scores are illustrated in Figure X and Figure Y.
+Scores are calculated using full training dataset and full test dataset.
 
+Precision test scores are 0.009 for zero-hypothesis and 0.405 for baseline model.
 
-
-zero-hypothesis: F1 score for train:
-[ 0.57224771  0.          0.          0.          0.          0.          0.        ] => 0.14836051648
-zero-hypothesis: Precision score for train:
-[ 0.40080321  0.          0.          0.          0.          0.          0.        ] => 0.103911944073
-zero-hypothesis: F1 score for validation:
-[ 0.56668311  0.          0.          0.          0.          0.          0.        ] => 0.144565442822
-zero-hypothesis: Precision score for validation:
-[ 0.39536485  0.          0.          0.          0.          0.          0.        ] => 0.100860768449
-
-baseline: F1 score for train:
-[ 0.71725082  0.1395881   0.60414478  0.34175084  0.59150152  0.34600998  0.24330672] => 0.54825728836
-baseline: Precision score for train:
-[ 0.76487757  1.          0.75059326  0.89624724  0.71170784  0.8685446 0.93165468] => 0.786451248018
-baseline: F1 score for validation:
-[ 0.58046851  0.07725322  0.43339806  0.20285261  0.42307692  0.16494845 0.10285714] => 0.391692997207
-baseline: Precision score for validation:
-[ 0.60997442  0.6         0.55192878  0.53781513  0.52333932  0.45714286 0.40909091] => 0.54163497771
-
-
+![Zero-hypothesis](f1_score_zerohypothesis.png)
+![Baseline model](f1_score_baseline.png)
 
 In this section, you will need to provide a clearly defined benchmark result or threshold for comparing across performances obtained by your solution. The reasoning behind the benchmark (in the case where it is not an established result) should be discussed. Questions to ask yourself when writing this section:
 - _Has some result or value been provided that acts as a benchmark for measuring performance?_
@@ -211,7 +190,7 @@ _(approx. 3-5 pages)_
  
  * Feature sequences are zero-padded to have equal lengths. Even though RNN is able to handle variable length
    sequences, the sequences used should have equal shapes and then the results are picked according to
-   original lenghts.
+   original lengths.
 
 In this section, all of your preprocessing steps will need to be clearly documented, if any were necessary. From the previous section, any of the abnormalities or characteristics that you identified about the dataset will be addressed and corrected here. Questions to ask yourself when writing this section:
 - _If the algorithms chosen require preprocessing steps like feature selection or feature transformations, have they been properly documented?_
@@ -234,7 +213,7 @@ Following modifications were done to original script:
 
  * Prefix wav-files with "sample_" (some files were otherwise starting with dash, with caused problems)
 
-Downloading all the samples tookseveral days even with good quality Internet-connection. However for testing
+Downloading all the samples took several days even with good quality Internet-connection. However for testing
 purposes, download-script can be canceled e.g. after few hundred samples are ready.
 
 #### Preprocessing
@@ -288,7 +267,8 @@ Also the selected model seems to be powerful enough to fully learn the training 
 training and validation error, which *might* allow our model to generalize better when more data is added.
 
 In Figure X the whole training dataset is in use. The result clearly outperforms our own baseline models, and the model
-is decided to be good enough to be our final model.
+is decided to be good enough to be our final model. Also from Figure X we can see that the model has converged long before
+3000 epoch, so we will drop our epochs to 1500 when training model with whole training dataset without validation split.
 
 ![Validation curve for LSTM unit count using 2000 epochs](validation_curve_lstm_units_2000_epochs.png)
 
@@ -304,6 +284,7 @@ is decided to be good enough to be our final model.
 
 ![Validation curve for epoch count using 4000 samples](validation_curve_epochs_4000_samples.png)
 
+![Validation curve for epoch count using 21788 samples](validation_curve_epochs_21788_samples.png)
 
 In this section, you will need to discuss the process of improvement you made upon the algorithms and techniques you used in your implementation. For example, adjusting parameters for certain models to acquire improved solutions would fall under the refinement category. Your initial and final solutions should be reported, as well as any significant intermediate results as necessary. Questions to ask yourself when writing this section:
 - _Has an initial solution been found and clearly reported?_
@@ -315,6 +296,20 @@ In this section, you will need to discuss the process of improvement you made up
 _(approx. 2-3 pages)_
 
 ### Model Evaluation and Validation
+
+Final results of the refined RNN model are illustrated in Figure X and Table Y. In Table Y are also benchmark results.
+
+One problem with the RNN model seems the be that it takes several epochs to learn even the simplest dataset. Related to this,
+the performance of the model seems to often drop quickly after the training is started, and start to rise only after some hundreds of epochs.
+In Figure X only 100 samples are used, 80 for training and 20 for validation, but the model requires hundreds of epochs to learn anything,
+and is not able to fully learn training set in 3000 epochs.
+
+![Validation curve for epoch count using 100 samples](validation_curve_epochs_100_samples.png)
+
+However, the model seems to perform better as more data is used, which is good in this case, as we have thousands of samples at our
+disposal. Also as the final model used here is tested with test dataset which is approximately as big as the training dataset, the results
+are likely to be trustable.
+
 In this section, the final model and any supporting qualities should be evaluated in detail. It should be clear how the final model was derived and why this model was chosen. In addition, some type of analysis should be used to validate the robustness of this model and its solution, such as manipulating the input data or environment to see how the model’s solution is affected (this is called sensitivity analysis). Questions to ask yourself when writing this section:
 - _Is the final model reasonable and aligning with solution expectations? Are the final parameters of the model appropriate?_
 - _Has the final model been tested with various inputs to evaluate whether the model generalizes well to unseen data?_
@@ -322,6 +317,9 @@ In this section, the final model and any supporting qualities should be evaluate
 - _Can results found from the model be trusted?_
 
 ### Justification
+Compared to all benchmark results in Table X, this model seems to work rather well. Also considering absolute values, the model
+seems to be good enough to add value for e.g. audio monitoring.
+
 In this section, your model’s final solution and its results should be compared to the benchmark you established earlier in the project using some type of statistical analysis. You should also justify whether these results and the solution are significant enough to have solved the problem posed in the project. Questions to ask yourself when writing this section:
 - _Are the final results found stronger than the benchmark result reported earlier?_
 - _Have you thoroughly analyzed and discussed the final solution?_
@@ -338,6 +336,9 @@ In this section, you will need to provide some form of visualization that emphas
 - _If a plot is provided, are the axes, title, and datum clearly defined?_
 
 ### Reflection
+
+Most problematic with this project was the amount of time needed to train RNN model.
+
 In this section, you will summarize the entire end-to-end problem solution and discuss one or two particular aspects of the project you found interesting or difficult. You are expected to reflect on the project as a whole to show that you have a firm understanding of the entire process employed in your work. Questions to ask yourself when writing this section:
 - _Have you thoroughly summarized the entire process you used for this project?_
 - _Were there any interesting aspects of the project?_
