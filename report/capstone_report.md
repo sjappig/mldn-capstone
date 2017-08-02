@@ -299,7 +299,12 @@ _(approx. 2-3 pages)_
 
 Final results of the refined RNN model are illustrated in Figure X and Table Y. In Table Y are also benchmark results.
 
-One problem with the RNN model seems the be that it takes several epochs to learn even the simplest dataset. Related to this,
+![RNN model](f1_score_RNN.png)
+
+The results are much worse than expected. One explanation is that the model overfitted for training dataset, and
+the validation dataset "leaked" to model through hyperparameter tuning, and gave overly optimistic results.
+
+Also one problem with the RNN model seems the be that it takes several epochs to learn even the simplest dataset. Related to this,
 the performance of the model seems to often drop quickly after the training is started, and start to rise only after some hundreds of epochs.
 In Figure X only 100 samples are used, 80 for training and 20 for validation, but the model requires hundreds of epochs to learn anything,
 and is not able to fully learn training set in 3000 epochs.
