@@ -1,7 +1,8 @@
 # Machine Learning Engineer Nanodegree
 ## Capstone Project
 Jari-Pekka Ryynänen
-December 31st, 2017
+
+August 6th, 2017
 
 ## I. Definition
 
@@ -27,10 +28,20 @@ audio from other sources than YouTube. There are several application ideas for t
 Problem to solve: Create a system that is capable of giving (possible multiple) label(s) to a short
 audio segment. More precisily, given audio sample, predict a label that describes that sample,
 where label is from predefined set. The approach will be supervised, i.e. system is trained to do
-this prediction by showing simple-label pairs. Precise predictions with coarse labels are preferred
+this prediction by showing sample-label pairs. Precise predictions with coarse labels are preferred
 over imprecise with detailed labels. Target labels will be the top-level labels in AudioSet ontology:
 "Human sounds", "Source-ambiguous sounds", "Animal", "Sounds of things", "Music", "Natural sounds",
 "Channel, environment and background".
+
+This problem statement differs slightly from the one given in Capstone Proposal. In Proposal the
+target was to give only single label. However, it became very quickly clear that since the audio segments
+are multilabel by nature, trying to classify them with only single label was not an option. For example,
+if one audio sample would have labels "Music" and "Animal", duplicating that sample to two samples with
+those labels would lead to situation where one of the samples would inevitably be misclassified. Dropping one
+label would also lead to problems. If label "Music" would be dropped from our example, and the classifier
+would still after that predict the sample to have label "Music", we would declare it being wrong and
+steer the training to other direction, even though the sample could be mostly "Music" (there is no knowledge
+how "strongly" the given labels are in samples).
 
 First task is to download and store samples. The samples are segments of YouTube videos, but as we
 are interested in the audio of those videos, the audio must be extracted.
@@ -82,18 +93,18 @@ Sample is from YouTube video "our STOMP routine - Ground Zero Master's Commissio
 between 30s - 40s. Same figure illustrates point-wise maximum, mean and minimum values calculated over
 all training samples.
 
-From Figure 2. we can see that there is no offset and the 16 bit sample space is used effectively for each sample.
+From Figure 2. we can see that there is no offset and for each point the whole numeric range is in use.
 
 ### Algorithms and Techniques
 
 #### Benchmark models
 
-In this project will be using two simple models which performance will be compared against
+In this project will be using two simple models whose performance will be compared against
 our final model:
 
  * Zero-hypothesis: Model that predicts always the same (first) label.
 
- * Logistic regression: Linear model that "compresses" its output using logistic function.
+ * Logistic regression: Linear model that "compresses" its output using logistic function to range [0, 1].
    For multilabel classification, multiple models are trained, each giving probability of one class.
 
 These models will use the same features as the final model.
@@ -101,12 +112,12 @@ These models will use the same features as the final model.
 #### Mel-Frequency Cepstral Coefficients
 
 Mel-Frequency Cepstral Coefficients (MFCC) are a way to present spectral information
-of audio. They are usually calculated using short overlapping frames of audio. [5]
+of audio. They are usually calculated using short overlapping frames of audio.
 
 Normal cepstral coefficients present the change in the spectrum; by picking the first few
 cepstral coefficient we are able to capture the envelope of the spectrum. With MFCC, we
 are also taking account how human auditory system works by dividing the spectrum using
-Mel-scale, which approximates human hearing.
+Mel-scale, which approximates human hearing. [5]
 
 Using MFCCs as features reduces the dimensionality of the problem compared to raw audio.
 As they model the data similar manner as human hearing system, they should be able to capture 
@@ -117,35 +128,33 @@ the audio samples.
 
 Recurrent Neural Networks (RNN) are neural networks that use their output from the previous time step
 *t-1* when calculating output for the timestep *t*. Also the errors are propagated through timesteps backwards.
-The chain rule that is used in all neural networks applies also here. [6]
+The chain rule that is used basically in all neural networks applies also here. [6]
  
 Long Short-Term Memory (LSTM) units are building blocks for RNN that are able to learn over many time steps [7].
-LSTM responds to vanishing/exploding gradient problems which may occur in long sequences by provding the
+LSTM responds to vanishing/exploding gradient problems which may occur in long sequences by providing the
 previous "internal state" of the unit as is to next timestep, and gating that state, input and output by 
 "fuzzy" gates (i.e. if traditional logic gates can be seen as multiplication of 0 or 1, these gates multiply
-using value which is [0, 1]).
+using value which is from range [0, 1]).
 
 By using RNN, we are able to capture temporal information of audio samples. With LSTM, our model can learn
 dependencies which span over whole sequence, even if the sequence is long.
 
 #### Batch normalization and weight initialization
 
-Batch normalization is method which helps relaxing tuning required for weights and learning rate
-(it is also reported to have other many other benefits, including regularization effect) [8]. It tries
-to normalize its input to have mean of 0 and variance of 1.
+Batch normalization is a neural network layer which helps relaxing tuning required for learning rate and adds regularization
+to network [8]. It tries to normalize its input to have mean of 0 and variance of 1.
 
-For weight initializing orthogonal initializer is used. It has been reported to have
-positive effect on controlling vanishing/exploding gradients and in some cases also
-making the models to converge faster. [9]
+For weight initialization of neural network, orthogonal initializer is used. It has been reported to have
+positive effect on controlling vanishing/exploding gradients [9].
 
-#### Multi-label output and label weights
+#### Neural network multi-label output and label weights
 
-Since the output for our models can have multiple labels, we will be using sigmoid activation in each output
+Since the output for our model can have multiple labels, we will be using sigmoid activation in each output
 node independently, and interpret the result as probability of corresponding class being present.
 If the probability is over 1/2, our final prediction is that the class is present, and vice versa.
 
 Label weights that are used to counter imbalanced distribution of classes are calculated using class frequencies
-of full training set.
+of the full training set.
 
 ### Benchmark
 
@@ -236,9 +245,9 @@ With this split, number of LSTM units were tuned, with pre-decided maximum of 51
 measuring weighted mean F1 score.
 
 In Figure 6 2000 epochs were used while training the model. As can be seen from the figure, model performance seems to first 
-behave as expected and is rising as LSTM units are added, but with 512 units there is a drop. Next in Figure 7 number of epochs
-is increased to 3000 to see if the model was simply not yet converged. However, the result is now significally worse with
-all measurement points. To understand better what is happening, loss functions are plotted in Figure 8. From there we can see that
+behave as expected and is rising as LSTM units are added, but with 512 units there is a drop in *both* training and validation performance.
+Next in Figure 7 number of epochs is increased to 3000 to see if the model was simply not yet converged. However, the results are now significantly
+worse with all measurement points. To understand better what is happening, loss functions are plotted in Figure 8. From there we can see that
 they seem rather unstable.
 
 Since we are using Adam optimization algorithm, the learning rate should be able to adapt by itself. However, the stability of
@@ -247,21 +256,21 @@ marked in TensorFlow documentation to have questionable default value. [11] Afte
 spikes in loss functions are lowered (Figure 9) and the validation curve (Figure 10) shows that the validation score for 512 LSTM units is the best so far.
 
 In Figures 11, 12 and 13 RNN model with 512 LSTM units is used with epsilon 1e-4. Split to training and validation sets is done using the
-same 80-20 division as with 1000 samples. Interestingly, the unstabilities seem to disappear as more data is used.
-Also the selected model seems to be powerful enough to fully learn the training data, having clear gap between
+same 80% - 20% division as with 1000 samples. Interestingly, the unstabilities seem to disappear as more data is used.
+The selected model seems also to be powerful enough to fully learn the training data, having clear gap between
 training and validation error, which *might* allow our model to generalize better when more data is added.
 
 In Figure 13 the whole training dataset is in use. The result clearly outperforms our own baseline models, and the model
 is decided to be good enough to be our final model. Also from Figure 13 we can see that the model has converged long before
-3000 epoch, so we will drop our epochs to 1500 when training model with whole training dataset without validation split.
+epoch 3000, so we will drop our epoch count to 1500 when training model with whole training dataset without validation split.
 
 ![Validation curve for LSTM unit count using 2000 epochs](validation_curve_lstm_units_2000_epochs.png)
 
 ![Validation curve for LSTM unit count using 3000 epochs](validation_curve_lstm_units_3000_epochs.png)
 
-![Loss function with default optimizer epsilon](cost_default_epsilon.png)
+![Loss function with default optimizer epsilon](cost_default_epsilon.png){height=66%}
 
-![Loss function with optimizer epsilon 1e-4](cost_dropped_epsilon.png)
+![Loss function with optimizer epsilon 1e-4](cost_dropped_epsilon.png){height=66%}
 
 ![Validation curve for LSTM unit count using 3000 epochs and optimizer epsilon 1e-4](validation_curve_lstm_units_3000_epochs_epsilon_dropped.png)
 
@@ -273,11 +282,13 @@ is decided to be good enough to be our final model. Also from Figure 13 we can s
 
 \newpage
 
-## IV. Results
+## IV. Results and conclusion
 
 ### Model Evaluation and Validation
 
-Final results of the refined RNN model are illustrated in Figure 14 and Table 1. In Table 1 are also benchmark results.
+Final results of the refined RNN model are illustrated in Figure 14 and Table 1. For these results,
+whole training dataset is used for training, and the separate test dataset is used for testing.
+In Table 1 are also benchmark results.
 
 ![RNN model](f1_score_RNN.png)
 
@@ -306,41 +317,27 @@ However, the model seems to perform better as more data is used. Also as the fin
 approximately as big as the training dataset, the results are likely to be trustable.
 
 ### Justification
+
 From the Table 1 we can see that RNN model outperforms our own benchmark models. Compared to results from [2]
 and [3] the outcome is in line with prediction made in subchapter Benchmark of chapter II.
 
 From Figure 14 we can see that final RNN model is able to predict some of the labels with good performance.
-For example, model does decent job for predicting "Music". Therefore it makes sense to say that the problem defined
+For example, model does a decent job for predicting "Music". Therefore it makes sense to say that the problem defined
 in chapter I is solved at least partially.
-
-\newpage
-
-## V. Conclusion
-_(approx. 1-2 pages)_
-
-GPU results are from FloydHub, with Tesla K80. CPU results are from personal laptop, with Intel Core i7-4600U.
-
-As the figure shows, using GPU for training 
- 
-
-In this section, you will need to provide some form of visualization that emphasizes an important quality about the project. It is much more free-form, but should reasonably support a significant result or characteristic about the problem that you want to discuss. Questions to ask yourself when writing this section:
-- _Have you visualized a relevant or important quality about the problem, dataset, input data, or results?_
-- _Is the visualization thoroughly analyzed and discussed?_
-- _If a plot is provided, are the axes, title, and datum clearly defined?_
 
 ### Reflection
 
+Having the process splitted in separate parts with intermediate results (acquiring data, preprocessing and fitting/predicting)
+was really good approach, as it allowed me to focus mostly one part at a time. For example, at the time when I tuned the RNN hyperparameters,
+I didn't have to worry how I would get the data or how it would look, as I had already the preprocessed features stored in a file.
+
 Learning more about TensorFlow was one the most interesting parts of this project. I had previously used it in Deep Learning-project of Machine Learning Nanodegree,
-but implementing this project from scratch required much more thorough understading of the framework.
+but implementing this project from scratch required much more thorough understading of the framework. After this experience though, I think the next time I need to
+use TensorFlow, I will use some more higher level framework on top of it, e.g. Keras, to reduce the time needed to tinker with the details.
 
 Perhaps the most problematic aspect of this project was that the amount of data was quite big, so working with it was rather time-consuming. Especially training of the RNN model was slow,
-and after training for a while with just the CPU of my own laptop, I decided to get some GPU-time from FloydHub.
-
-In this section, you will summarize the entire end-to-end problem solution and discuss one or two particular aspects of the project you found interesting or difficult. You are expected to reflect on the project as a whole to show that you have a firm understanding of the entire process employed in your work. Questions to ask yourself when writing this section:
-- _Have you thoroughly summarized the entire process you used for this project?_
-- _Were there any interesting aspects of the project?_
-- _Were there any difficult aspects of the project?_
-- _Does the final model and solution fit your expectations for the problem, and should it be used in a general setting to solve these types of problems?_
+and after training for a while with just the CPU of my own laptop, I decided to get some GPU-time from FloydHub. Doing calculations in FloydHub more than halved the wall-clock time needed
+for training, and I am almost certain that I will continue to use FloydHub in the future, as it gave really good performance with minimal user effort.
 
 ### Improvement
 
@@ -350,28 +347,16 @@ the features might need to be tuned, as it might also be that the extracted feat
 It is almost certain that with more time spent in feature engineering, the results would improve. The current parameters used in MFCC calculation were chosen
 somewhat arbitrarily, and not fine-tuned as other parts of this project provided already plenty of work.
 
-
------------
-
-**Before submitting, ask yourself. . .**
-
-- Does the project report you’ve written follow a well-organized structure similar to that of the project template?
-- Is each section (particularly **Analysis** and **Methodology**) written in a clear, concise and specific fashion? Are there any ambiguous terms or phrases that need clarification?
-- Would the intended audience of your project be able to understand your analysis, methods, and results?
-- Have you properly proof-read your project report to assure there are minimal grammatical and spelling mistakes?
-- Are all the resources used for this project correctly cited and referenced?
-- Is the code that implements your solution easily readable and properly commented?
-- Does the code execute without error and produce results similar to those reported?
-
+\newpage
 
 1. AudioSet: A large-scale dataset of manually annotated audio events https://research.google.com/audioset/dataset/index.html
 1. Gemmeke, J. et al: Audio Set: An ontology and human-labeled dataset for audio events, 2017 https://research.google.com/pubs/pub45857.html
 1. Phan, H. et al.: Audio Scene Classification with Deep Recurrent Neural Networks, 2017 https://arxiv.org/pdf/1703.04770.pdf
 1. https://www.youtube.com/watch?v=r7VBDgfPBco
-1. MFCC
-1. RNN 
-1. MFCC
-1. BATCH NORM
-1. ORTHOGONAL INIT
+1. Prahallad, K.: Speech Technology: A Practical Introduction http://www.speech.cs.cmu.edu/15-492/slides/03_mfcc.pdf
+1. Britz, D.: Recurrent Neural Networks Tutorial http://www.wildml.com/2015/09/recurrent-neural-networks-tutorial-part-1-introduction-to-rnns/ 
+1. Olah, C.: Understanding LSTM Networks http://colah.github.io/posts/2015-08-Understanding-LSTMs/
+1. Ioffe, S., Szegedy, C.: Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift https://arxiv.org/pdf/1502.03167.pdf
+1. Explaining and illustrating orthogonal initialization for recurrent neural networks http://smerity.com/articles/2016/orthogonal_init.html
 1. https://github.com/unixpickle/audioset/
-1. Tensorflow adamoptimizer epsilon
+1. https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer
