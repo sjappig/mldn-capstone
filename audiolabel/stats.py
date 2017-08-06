@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 class StatisticsCollector(object):
 
@@ -99,6 +98,7 @@ def collect_samples(sample, sum_sample, min_sample, max_sample):
 
 
 def plot(collected, sample):
+    import matplotlib.pyplot as plt
     fig = plt.figure()
     ax = plt.subplot(111)
     x = np.array(range(0,160000)) * 1.0/16000

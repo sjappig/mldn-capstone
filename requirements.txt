@@ -1,9 +1,7 @@
-numpy
-sklearn
-pandas
-tensorflow
-jupyter
-python_speech_features
-scipy
-tables
-matplotlib
+numpy==1.13.1
+scikit-learn==0.18.2
+scipy==0.19.1
+pandas==0.20.2
+tensorflow==1.2.1
+python-speech-features==0.5
+tables==3.4.2
