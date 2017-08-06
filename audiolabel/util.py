@@ -10,6 +10,8 @@ Dataset = collections.namedtuple('Dataset', ('name', 'x', 'y', 'nonpadded_length
 
 
 def f1_score(y_true, y_pred, average=None):
+    '''Calculate F1 score.
+    '''
     return sklearn.metrics.f1_score(
         y_true,
         y_pred,
@@ -18,23 +20,38 @@ def f1_score(y_true, y_pred, average=None):
 
 
 def precision_score(y_true, y_pred, average=None):
+    '''Calculate precision score.
+    '''
+
     return sklearn.metrics.precision_score(
         y_true,
         y_pred,
         average=average,
     )
 
+
 def read_data(filepath):
+    '''Read HDF data from *filepath*.
+    '''
+
     return pd.read_hdf(filepath, 'data')
 
 
 def read_dataset(filepath, dataset_size=None):
+    '''Read HDF data from *filepath* and return it as Dataset.
+    If *dataset_size* is given, use at most that many samples.
+    '''
+
     data = read_data(filepath)
 
     return dataframe_to_dataset(data, dataset_size)
 
 
 def dataframe_to_dataset(data, dataset_size=None):
+    '''Convert DataFrame to Dataset. DataFrame *data*
+    is assumed to have 'samples' and 'labels_ohe'.
+    '''
+
     samples = np.array(data['samples'].tolist())
 
     labels = np.array(data['labels_ohe'].tolist())
@@ -57,7 +74,12 @@ def dataframe_to_dataset(data, dataset_size=None):
 
     return Dataset('full', samples, labels, nonpadded_lengths)
 
+
 def batches(*datasets, **kwargs):
+    '''Split given dataset to batches. Batch size can be
+    modified with keyword argument *batch_size*.
+    '''
+
     batch_size = kwargs.pop('batch_size', 1024)
 
     assert datasets
@@ -75,7 +97,14 @@ def batches(*datasets, **kwargs):
             for dataset in datasets
 		)
 
+
 class Predictor(object):
+    '''This class works as a wrapper for prediction function.
+    It allows to use the predict-methods of sklearn which
+    use only the argument *x* the same way as our RNN model
+    predict-function which takes also *nonpadded_lengths*.
+    '''
+
     def __init__(self, predict, use_only_x=True):
         self._predict = predict
         self._use_only_x = use_only_x

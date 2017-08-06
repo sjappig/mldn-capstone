@@ -20,6 +20,9 @@ _MAIN_CONCEPT_LABELS = sorted(ONTOLOGY.topmost_labels)
 
 
 def k_hot_encode(labels):
+    '''Encode labels. Example output [0, 1, 0, 1, 0, 0, 1].
+    '''
+
     label_indices = [
         _MAIN_CONCEPT_LABELS.index(label)
         for label in labels
@@ -32,6 +35,9 @@ def k_hot_encode(labels):
 
 
 def min_max_normalize(features, min_features, max_features):
+    '''Normalize *features** between 0 and 1 (feature-wise).
+    '''
+
     return np.array([
         (feature - min_features) / (max_features - min_features)
         for feature in features
@@ -39,6 +45,9 @@ def min_max_normalize(features, min_features, max_features):
 
 
 def extract_features(data, samplerate):
+    '''Calculate MFCC features from audio.
+    '''
+
     import python_speech_features
 
     return python_speech_features.mfcc(
@@ -50,6 +59,10 @@ def extract_features(data, samplerate):
 
 
 def pad_samples(dataframe):
+    '''Pad samples with zeros, so the
+    sample sequences have equal lengths.
+    '''
+
     max_length = np.max(dataframe.nonpadded_length)
 
     def pad_with_zeros(df_element):
@@ -71,6 +84,11 @@ def pad_samples(dataframe):
 
 
 def calculate_and_store_features(filepath, max_samples, csv_filepath, audio_directory, norm_stats=None):
+    '''Calculate (at most *max_samples*; if None, all samples are used) features from *csv_filepath*
+    and *audio_directory*, and store them to *filepath*. If *norm_stats* is given, use that for
+    min-max-normalization instead of statistics calculated from the features.
+    '''
+
     hdf_dir = os.path.dirname(filepath)
 
     if not os.path.isdir(hdf_dir):
@@ -110,9 +128,13 @@ def calculate_and_store_features(filepath, max_samples, csv_filepath, audio_dire
 
 
 def _generate_data(stats_collector, max_samples, csv_filepath, audio_directory):
+    '''Generate (at most *max_samples*; if None, all samples are used) tuples
+    (sequence of features, length of sequence, k-hot-encoded samples).
+    '''
+
     audio_generator = audiolabel.audio.generate_all(
-        csv_filepath, # 'dataset/audioset/balanced_train_segments.csv',
-        audio_directory, # 'dataset/audioset/train',
+        csv_filepath,
+        audio_directory,
     )
 
     for labels, data, samplerate in audio_generator:

@@ -9,6 +9,8 @@ import audiolabel.util
 
 
 def create(x_train, y_train, **_):
+    '''Create logistic regression multi-label classifier.
+    '''
 
     def flatten(samples):
         return np.array([

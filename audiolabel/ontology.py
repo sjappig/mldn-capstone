@@ -8,6 +8,9 @@ def read(filepath):
 
 
 class Ontology(object):
+    '''Encapsulate AudioSet ontology.
+    '''
+
     def __init__(self, data):
         self._data = {
             concept['id']: concept

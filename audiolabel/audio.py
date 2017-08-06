@@ -5,6 +5,9 @@ import scipy.io.wavfile as wavfile
 
 
 def generate_all(csv_filename, wav_dir, missing_file_action=None):
+    '''Generate tuples (labels, data, samplerate) for all samples
+    from *csv_filename* that exist in *wav_dir*.
+    '''
 
     if missing_file_action is None:
         missing_file_action = lambda *_: None

@@ -14,6 +14,10 @@ ClassifierType = collections.namedtuple('ClassifierType', ('name', 'create'))
 
 
 def read_and_split_datasets(filepath, dataset_size=None, validation_size=0.2):
+    '''Read data from given filepath. If *dataset_size* is given, use only at most
+    that many samples. If *validation_size* is zero, do not create validation dataset.
+    '''
+
     dataset = audiolabel.util.read_dataset(filepath, dataset_size)
 
     if validation_size > 0:
@@ -82,6 +86,7 @@ if __name__ == '__main__':
         if not any(args.skip == clf_type.name for clf_type in classifier_types):
             print 'Unkown classifier to skip: {}'.format(args.skip)
 
+    # *datasets* may contain up to three datasets: train, validation and test
     datasets = read_and_split_datasets(
         args.hdf_store,
         dataset_size=args.N,
@@ -109,6 +114,7 @@ if __name__ == '__main__':
 
         extra_args = {}
 
+        # This is a bit hackish way to detect if we have validation set in use
         if datasets[1].name == 'validation':
             extra_args['x_validation'] = datasets[1].x
             extra_args['y_validation'] = datasets[1].y

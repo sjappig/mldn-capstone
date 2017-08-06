@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 
 class StatisticsCollector(object):
+    '''Collect statistics for samples.
+    '''
 
     def __init__(self, label_distribution, minimum=None, maximum=None, sample_count=0):
         self._label_distribution = label_distribution
@@ -78,6 +80,8 @@ _MAX_SAMPLE_LEN = 160000
 
 
 def collect_samples(sample, sum_sample, min_sample, max_sample):
+    '''Obsolete, do not use
+    '''
 
     if sum_sample is None:
         sum_sample = np.zeros(_MAX_SAMPLE_LEN)
@@ -98,6 +102,9 @@ def collect_samples(sample, sum_sample, min_sample, max_sample):
 
 
 def plot(collected, sample):
+    '''Obsolete, do not use
+    '''
+
     import matplotlib.pyplot as plt
     fig = plt.figure()
     ax = plt.subplot(111)

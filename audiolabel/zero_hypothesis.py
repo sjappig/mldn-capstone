@@ -8,7 +8,12 @@ import audiolabel.preprocess
 import audiolabel.util
 
 def create(x_train, y_train, **_):
+    '''Create zero-hypothesis predictor.
+    '''
 
+    # Even DummyClassifier does not use the incoming data,
+    # sklearn will explode if the data provided to classifier
+    # is not flat.
     transform = sklearn.preprocessing.FunctionTransformer(
         lambda X: np.zeros((len(X), 1)),
         validate=False,
