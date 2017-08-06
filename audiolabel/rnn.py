@@ -20,17 +20,11 @@ _Trainable = collections.namedtuple('_Optimizer', (
 ))
 
 
-def _summary(name, tensor):
-    tf.summary.scalar('{}_min'.format(name), tf.reduce_min(tensor))
-    tf.summary.scalar('{}_max'.format(name), tf.reduce_max(tensor))
-    tf.summary.scalar('{}_mean'.format(name), tf.reduce_mean(tensor))
-
-
 def _weight_initializer():
     return tf.orthogonal_initializer()
 
 
-def _rnn_layers(x, nonpadded_lengths, num_units):
+def _rnn_layer(x, nonpadded_lengths, num_units):
     cell = tf.nn.rnn_cell.LSTMCell(
         num_units,
         initializer=_weight_initializer(),
@@ -49,51 +43,62 @@ def _rnn_layers(x, nonpadded_lengths, num_units):
         nonpadded_lengths-1
     ], axis=1)
 
-    output = tf.gather_nd(rnn_outputs, output_indices)
+    output = tf.gather_nd(rnn_outputs, output_indices, name='ignore_padded')
 
     return output
 
 
 def _output_layer(x, num_outputs, is_training):
     W_output = tf.get_variable(
-        "W_output",
+        "W",
         shape=[x.shape[1].value, num_outputs],
         initializer=_weight_initializer(),
     )
 
-    b_output = tf.Variable(tf.zeros(num_outputs))
+    b_output = tf.get_variable(name='b', shape=[num_outputs], initializer=tf.zeros_initializer())
 
-    activations = tf.add(tf.matmul(x, W_output), b_output)
+    logits = tf.add(tf.matmul(x, W_output), b_output, name='logits')
 
-    return tf.contrib.layers.batch_norm(activations, is_training=is_training, fused=True, center=True)
+    normalized = tf.contrib.layers.batch_norm(
+        logits,
+        is_training=is_training,
+        fused=True,
+        center=True,
+    )
 
+    return normalized
 
 def _graph(x_batch, len_batch, num_classes, num_features, padded_length, rnn_num_units):
     print 'rnn_num_units: {}'.format(rnn_num_units)
 
-    x_in = tf.placeholder_with_default(
-        np.zeros([1, padded_length, num_features], dtype=np.float32),
-        [None, padded_length, num_features],
-        name='x_in',
-    )
-    nonpadded_lengths_in = tf.placeholder_with_default(
-        np.zeros([1], dtype=np.int32),
-        [None],
-        name='nonpadded_lengths_in',
-    )
+    with tf.name_scope('test_input'):
+        x_in = tf.placeholder_with_default(
+            np.zeros([1, padded_length, num_features], dtype=np.float32),
+            [None, padded_length, num_features],
+            name='x_in',
+        )
+        nonpadded_lengths_in = tf.placeholder_with_default(
+            np.zeros([1], dtype=np.int32),
+            [None],
+            name='nonpadded_lengths_in',
+        )
     is_training_in = tf.placeholder(tf.bool, name='is_training_in')
 
     x, nonpadded_lengths = tf.cond(
         is_training_in,
         lambda: (x_batch, len_batch),
         lambda: (x_in, nonpadded_lengths_in),
+        name='input_selector',
     )
 
-    rnn_output = _rnn_layers(x, nonpadded_lengths, rnn_num_units)
+    with tf.name_scope('rnn_layer'):
+        rnn_output = _rnn_layer(x, nonpadded_lengths, rnn_num_units)
 
-    logits = _output_layer(rnn_output, num_classes, is_training_in)
+    with tf.name_scope('output_layer'):
+        logits = _output_layer(rnn_output, num_classes, is_training_in)
 
-    predictor = tf.round(tf.nn.sigmoid(logits), name='y_pred')
+    with tf.name_scope('prediction'):
+        predictor = tf.round(tf.nn.sigmoid(logits), name='y_pred')
 
     return _Graph(x_in, nonpadded_lengths_in, logits, predictor, is_training_in)
 
@@ -103,7 +108,7 @@ def _get_weights(y):
     # Each weight is inversely proportional to corresponding class frequency.
     class_weights = tf.constant([
         1., 8.54679803, 1.1034088, 3.55824446, 1.04745231, 2.66513057, 3.76519097
-    ])
+    ], name='class_weights')
     weights = tf.multiply(y, class_weights)
     weights = tf.reduce_mean(weights, axis=1)
 
@@ -164,6 +169,7 @@ def _train_graph(x_train, y_train, train_lengths, num_epochs, batch_size=256, x_
         [x_tensor, len_tensor, y_tensor],
         batch_size=batch_size,
         enqueue_many=True,
+        name='train_input',
     )
 
     graph = _graph(
@@ -174,13 +180,17 @@ def _train_graph(x_train, y_train, train_lengths, num_epochs, batch_size=256, x_
         padded_length=padded_length,
         rnn_num_units=512,
     )
-    trainable = _trainable(
-        graph,
-        y_batch=y_batch,
-        epsilon=1e-4,
-    )
+
+    with tf.name_scope('training'):
+        trainable = _trainable(
+            graph,
+            y_batch=y_batch,
+            epsilon=1e-4,
+        )
 
     with tf.Session() as sess:
+        writer = tf.summary.FileWriter('logs', sess.graph)
+
         sess.run(tf.global_variables_initializer())
 
         coord = tf.train.Coordinator()
