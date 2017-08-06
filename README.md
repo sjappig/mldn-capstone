@@ -1,4 +1,4 @@
-Capstone Project for Machnie Learning Nanodegree
+Capstone Project for Machine Learning Nanodegree
 ------------------------------------------------
 
 ### Acquiring AudioSet samples

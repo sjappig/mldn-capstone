@@ -10,14 +10,14 @@ August 6th, 2017
 
 This capstone project is about categorizing audio samples. Categorizing audio samples is a process
 of giving an appropriate label to audio. In this project we are using Google AudioSet [1], which
-contains huge amount of prelabeled samples drawn from YouTube-videos. More precisly, we are using
+contains huge amount of labeled samples drawn from YouTube-videos. More precisely, we are using
 balanced subsets of the AudioSet, which contain approximately 22k samples for training and 20k
 samples for testing. Dataset is described in more detail in [1] and [2].
 
 As the used dataset is rather big, the resulting model has good chance to generalize well also to
 audio from other sources than YouTube. There are several application ideas for this kind of model:
 
- * categorising audios/videos and making semantic search possible
+ * categorizing audios/videos and making semantic search possible
 
  * displaying extra information with captions (very helpful for deaf people)
 
@@ -26,7 +26,7 @@ audio from other sources than YouTube. There are several application ideas for t
 ### Problem Statement
 
 Problem to solve: Create a system that is capable of giving (possible multiple) label(s) to a short
-audio segment. More precisily, given audio sample, predict a label that describes that sample,
+audio segment. More precisely, given audio sample, predict a label that describes that sample,
 where label is from predefined set. The approach will be supervised, i.e. system is trained to do
 this prediction by showing sample-label pairs. Precise predictions with coarse labels are preferred
 over imprecise with detailed labels. Target labels will be the top-level labels in AudioSet ontology:
@@ -35,7 +35,7 @@ over imprecise with detailed labels. Target labels will be the top-level labels 
 
 This problem statement differs slightly from the one given in Capstone Proposal. In Proposal the
 target was to give only single label. However, it became very quickly clear that since the audio segments
-are multilabel by nature, trying to classify them with only single label was not an option. For example,
+are multi-label by nature, trying to classify them with only single label was not an option. For example,
 if one audio sample would have labels "Music" and "Animal", duplicating that sample to two samples with
 those labels would lead to situation where one of the samples would inevitably be misclassified. Dropping one
 label would also lead to problems. If label "Music" would be dropped from our example, and the classifier
@@ -66,7 +66,7 @@ values from [3] is F1-score: Harmonic mean of precision and recall.
 Mathematical equation for F1 is *2\*precision\*recall/(precision+recall)*. 
 Also precision will be used, to get comparable results with [2].
 
-Since we are working with multilabel classification, we will average the scores using
+Since we are working with multi-label classification, we will average the scores using
 class weights most of the time.
 
 \newpage
@@ -105,7 +105,7 @@ our final model:
  * Zero-hypothesis: Model that predicts always the same (first) label.
 
  * Logistic regression: Linear model that "compresses" its output using logistic function to range [0, 1].
-   For multilabel classification, multiple models are trained, each giving probability of one class.
+   For multi-label classification, multiple models are trained, each giving probability of one class.
 
 These models will use the same features as the final model.
 
@@ -180,9 +180,9 @@ Precision test scores are 0.009 for zero-hypothesis and 0.405 for baseline model
 
 ### Data Preprocessing
 
- * Audio is extraced from videos and stored with sample rate 16 kHz.
+ * Audio is extracted from videos and stored with sample rate 16 kHz.
 
- * 13 MFCC features are calculated with windown length 0.1 seconds and overlap of 0.05 seconds.
+ * 13 MFCC features are calculated with window length 0.1 seconds and overlap of 0.05 seconds.
 
  * Top-level labels for audio samples are gathered from the ontology tree and k-hot-encoded.
 
@@ -221,7 +221,7 @@ script doing the model fitting and predictions.
 #### Baseline models
 
 Zero-hypothesis and logistic regression were implemented using scikit-learn. Logistic regression was wrapped
-with one vs. many -ensemble classifier to create classifiers able to do multilabel classification.
+with one vs. many -ensemble classifier to create classifiers able to do multi-label classification.
 
 #### RNN
 
@@ -241,7 +241,7 @@ Since the model training time was rather long with the whole training data (depe
 parameter estimation was done with smaller subset of 1000 randomly drawn samples from training set, which was
 furthermore divided to training and validation sets of 800 and 200 samples, respectively.
 
-With this split, number of LSTM units were tuned, with pre-decided maximum of 512 (to control the training times of the model), while
+With this split, number of LSTM units were tuned, with pre-determined maximum of 512 (to control the training times of the model), while
 measuring weighted mean F1 score.
 
 In Figure 6 2000 epochs were used while training the model. As can be seen from the figure, model performance seems to first 
@@ -256,7 +256,7 @@ marked in TensorFlow documentation to have questionable default value. [11] Afte
 spikes in loss functions are lowered (Figure 9) and the validation curve (Figure 10) shows that the validation score for 512 LSTM units is the best so far.
 
 In Figures 11, 12 and 13 RNN model with 512 LSTM units is used with epsilon 1e-4. Split to training and validation sets is done using the
-same 80% - 20% division as with 1000 samples. Interestingly, the unstabilities seem to disappear as more data is used.
+same 80% - 20% division as with 1000 samples. Interestingly, the instabilities seem to disappear as more data is used.
 The selected model seems also to be powerful enough to fully learn the training data, having clear gap between
 training and validation error, which *might* allow our model to generalize better when more data is added.
 
@@ -314,7 +314,7 @@ and is not able to fully learn training set in 3000 epochs.
 ![Validation curve for epoch count using 100 samples](validation_curve_epochs_100_samples.png)
 
 However, the model seems to perform better as more data is used. Also as the final model used here is tested with test dataset which is
-approximately as big as the training dataset, the results are likely to be trustable.
+approximately as big as the training dataset, the results are likely credible.
 
 ### Justification
 
@@ -327,7 +327,7 @@ in chapter I is solved at least partially.
 
 ### Reflection
 
-Having the process splitted in separate parts with intermediate results (acquiring data, preprocessing and fitting/predicting)
+Having the process split in separate parts with intermediate results (acquiring data, preprocessing and fitting/predicting)
 was really good approach, as it allowed me to focus mostly one part at a time. For example, at the time when I tuned the RNN hyperparameters,
 I didn't have to worry how I would get the data or how it would look, as I had already the preprocessed features stored in a file.
 
