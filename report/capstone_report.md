@@ -63,11 +63,20 @@ and full testing set is used to get final scores.
 
 Balanced error measure which is easy to understand, and is comparable with
 values from [3] is F1-score: Harmonic mean of precision and recall.
-Mathematical equation for F1 is *2\*precision\*recall/(precision+recall)*. 
 Also precision will be used, to get comparable results with [2].
-
-Since we are working with multi-label classification, we will average the scores using
-class weights most of the time.
+The equations for metrics are
+\begin{equation}
+f_1 = 2*precision*recall/(precision+recall)
+\end{equation}
+\begin{equation}
+precision = tp/(tp+fp)
+\end{equation}
+\begin{equation}
+recall = tp/(tp+fn)
+\end{equation}
+where *tp* is true positives, *fp* is false positives and *fn* is false negatives.
+Since we are working with multi-label classification, these equations will be evaluated
+for each class and we will average the scores using class weights most of the time.
 
 \newpage
 
@@ -325,7 +334,23 @@ From Figure 14 we can see that final RNN model is able to predict some of the la
 For example, model does a decent job for predicting "Music". Therefore it makes sense to say that the problem defined
 in chapter I is solved at least partially.
 
+### Free-Form Visualization
+
+One important aspect of this project that affected how many iterations for hyperparameter tuning could be used, was
+the wall-clock time needed for training and validating RNN model. In Figure 16. is comparison between personal laptop
+(CPU, Intel(R) Core(TM) i7-4600U) and FloydHub (GPU, Tesla K80).
+
+![Time needed for training and validating, 2000 epochs and 1000 samples](time_usage.png)
+
+For CPU, time measurements were stopped after 256 LSTM units, as the time needed for training was already very long.
+The figure shows quite clearly why GPUs are used for training neural networks. Using just CPU would lead to painfully
+long training times. Interesting detail in the figure is that the time growth seems to be worse than linear with CPU.
+
 ### Reflection
+
+The whole process is illustrated in Figure 17.
+
+![The whole process](whole_process.png)
 
 Having the process split in separate parts with intermediate results (acquiring data, preprocessing and fitting/predicting)
 was really good approach, as it allowed me to focus mostly one part at a time. For example, at the time when I tuned the RNN hyperparameters,
